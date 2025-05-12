@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
+  rootController() {
+    return { status: 403, message: "not allowed url" };
   }
 }
