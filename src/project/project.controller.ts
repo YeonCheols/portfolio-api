@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Controller,
   Get,
@@ -16,28 +15,42 @@ import { UpdateProjectDto } from "./dto/update-project.dto";
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
+  // 새로운 프로젝트 생성
   @Post()
   create(@Body() createProjectDto: CreateProjectDto) {
     return this.projectService.create(createProjectDto);
   }
 
+  // 모든 프로젝트 조회
   @Get()
   findAll() {
     return this.projectService.findAll();
   }
 
-  @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.projectService.findOne(+id);
+  // 특정 슬러그로 프로젝트 조회
+  @Get(":slug")
+  findOne(@Param("slug") slug: string) {
+    return this.projectService.findOne(slug);
   }
 
-  @Patch(":id")
-  update(@Param("id") id: string, @Body() updateProjectDto: UpdateProjectDto) {
-    return this.projectService.update(+id, updateProjectDto);
+  // 프로젝트의 노출 상태 업데이트
+  @Post("show")
+  updateShow(@Body() slug: string, is_show: boolean) {
+    return this.projectService.updateShow(slug, is_show);
   }
 
-  @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.projectService.remove(+id);
+  // 특정 슬러그로 프로젝트 업데이트
+  @Patch(":slug")
+  update(
+    @Param("slug") slug: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    return this.projectService.update(slug, updateProjectDto);
+  }
+
+  // 특정 슬러그로 프로젝트 삭제
+  @Delete(":slug")
+  remove(@Param("slug") slug: string) {
+    return this.projectService.remove(slug);
   }
 }

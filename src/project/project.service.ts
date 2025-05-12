@@ -17,24 +17,33 @@ export class ProjectService {
     return userList;
   }
 
-  async findOne(id: number) {
+  async findOne(slug: string) {
     const user = await this.prisma.projects.findUnique({
-      where: { id },
+      where: { slug },
+    });
+    console.log("user : ", user);
+    return user;
+  }
+
+  async updateShow(slug: string, is_show: boolean) {
+    const user = await this.prisma.projects.update({
+      where: { slug },
+      data: { is_show },
     });
     return user;
   }
 
-  async update(id: number, data: UpdateProjectDto) {
+  async update(slug: string, data: UpdateProjectDto) {
     const user = await this.prisma.projects.update({
-      where: { id },
+      where: { slug },
       data,
     });
     return user;
   }
 
-  async remove(id: number) {
+  async remove(slug: string) {
     const user = await this.prisma.projects.delete({
-      where: { id },
+      where: { slug },
     });
     return user;
   }
