@@ -18,7 +18,6 @@ async function bootstrap() {
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
   app.listen(port).catch(async (err: Error) => {
     if (err.code === "EADDRINUSE") {
-      console.log(`Port ${port} is in use, trying next port...`);
       console.log(`next port: ${port + 1}`);
       await app.listen(port + 1);
     } else {
