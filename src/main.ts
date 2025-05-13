@@ -18,7 +18,19 @@ async function bootstrap() {
       throw err;
     }
   });
-  app.enableCors();
+  app.enableCors({
+    origin: [
+      "http://localhost:3000",
+      "https://dev-ycseng.vercel.app",
+      "https://ycseng.vercel.app",
+    ], // 허용할 오리진 배열
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
+    exposedHeaders: ["Authorization"], // 응답에서 노출할 헤더
+    credentials: true, // 인증 정보(쿠키 등) 허용
+    maxAge: 3600, // preflight 요청 캐시(초)
+    optionsSuccessStatus: 204, // OPTIONS 요청 응답 코드
+  });
 
   //Swagger 환경설정 연결
   setupSwagger(app);
