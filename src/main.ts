@@ -1,7 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { PrismaService } from "./prisma/prisma.service";
-import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { setupSwagger } from "../utils/swagger";
 
 interface Error {
   code: string;
@@ -9,12 +9,6 @@ interface Error {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const config = new DocumentBuilder()
-    .setTitle("Users API")
-    .setDescription("The is a sample REST API")
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api", app, document);
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
   app.listen(port).catch(async (err: Error) => {
     if (err.code === "EADDRINUSE") {
@@ -25,6 +19,10 @@ async function bootstrap() {
     }
   });
 
+  //Swagger 환경설정 연결
+  setupSwagger(app);
+
+  //Prisma 환경설정 연결
   const prismaService = app.get(PrismaService);
   await prismaService.enableShutdownHooks(app);
 }
