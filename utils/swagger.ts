@@ -43,7 +43,10 @@ export function setupSwagger(app: INestApplication): void {
 
   SwaggerModule.setup("api", app, document, {
     ...swaggerCustomOptions,
-    customJs: "../swagger-static/swagger-ui-bundle.js",
+    customJs: [
+      "../swagger-static/swagger-ui-bundle.js",
+      "../swagger-static/swagger-ui-standalone-preset.js",
+    ],
     customCssUrl: "../swagger-static/swagger-ui.css",
   });
   expressApp.use(
