@@ -18,6 +18,7 @@ async function bootstrap() {
       throw err;
     }
   });
+  app.enableCors();
 
   //Swagger 환경설정 연결
   setupSwagger(app);
