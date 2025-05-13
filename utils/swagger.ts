@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import * as express from "express";
+import { join } from "path";
 import { INestApplication } from "@nestjs/common";
 import {
   SwaggerModule,
@@ -34,5 +39,15 @@ export function setupSwagger(app: INestApplication): void {
     .build();
 
   const document = SwaggerModule.createDocument(app, options);
-  SwaggerModule.setup("api", app, document, swaggerCustomOptions);
+  const expressApp = app.getHttpAdapter().getInstance();
+
+  SwaggerModule.setup("api", app, document, {
+    ...swaggerCustomOptions,
+    customJs: "../swagger-static/swagger-ui-bundle.js",
+    customCssUrl: "../swagger-static/swagger-ui.css",
+  });
+  expressApp.use(
+    "/swagger-static",
+    express.static(join(__dirname, "..", "swagger-static")),
+  );
 }
