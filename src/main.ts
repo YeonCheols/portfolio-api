@@ -21,8 +21,11 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       "http://localhost:3000",
+      "http://localhost:5001",
       "https://dev-ycseng.vercel.app",
       "https://ycseng.vercel.app",
+      "https://dev-ycseng-admin.vercel.app",
+      "https://ycseng-admin.vercel.app",
     ], // 허용할 오리진 배열
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
