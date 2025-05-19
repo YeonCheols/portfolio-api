@@ -21,7 +21,6 @@ export class ProjectService {
     const user = await this.prisma.projects.findUnique({
       where: { slug },
     });
-    console.log("user : ", user);
     return user;
   }
 
