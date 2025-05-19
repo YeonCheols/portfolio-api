@@ -26,12 +26,13 @@ async function bootstrap() {
     origin: [
       "http://localhost:3000",
       "http://localhost:5001",
+      "https://localhost:5001",
       "https://dev-ycseng.vercel.app",
       "https://ycseng.vercel.app",
       "https://dev-ycseng-admin.vercel.app",
       "https://ycseng-admin.vercel.app",
     ], // 허용할 오리진 배열
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
     exposedHeaders: ["Authorization"], // 응답에서 노출할 헤더
     credentials: true, // 인증 정보(쿠키 등) 허용

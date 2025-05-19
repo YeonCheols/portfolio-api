@@ -13,7 +13,16 @@ export class ProjectService {
   }
 
   async findAll() {
-    const userList = await this.prisma.projects.findMany();
+    const userList = await this.prisma.projects.findMany({
+      orderBy: [
+        {
+          id: "desc",
+        },
+        {
+          updated_at: "desc",
+        },
+      ],
+    });
     return userList;
   }
 
