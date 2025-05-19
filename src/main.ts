@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { PrismaService } from "./prisma/prisma.service";
 import { setupSwagger } from "../utils/swagger";
+import { echoMessage } from "../utils/log";
 
 interface Error {
   code: string;
@@ -9,11 +10,14 @@ interface Error {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
+  let port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
+
   app.listen(port).catch(async (err: Error) => {
     if (err.code === "EADDRINUSE") {
-      console.log(`next port: ${port + 1}`);
+      echoMessage(`next port: ${port + 1}`);
+      echoMessage(`Server is running on port: http://localhost:${port + 1}`);
       await app.listen(port + 1);
+      port = port + 1;
     } else {
       throw err;
     }
@@ -22,12 +26,13 @@ async function bootstrap() {
     origin: [
       "http://localhost:3000",
       "http://localhost:5001",
+      "https://localhost:5001",
       "https://dev-ycseng.vercel.app",
       "https://ycseng.vercel.app",
       "https://dev-ycseng-admin.vercel.app",
       "https://ycseng-admin.vercel.app",
     ], // 허용할 오리진 배열
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
     exposedHeaders: ["Authorization"], // 응답에서 노출할 헤더
     credentials: true, // 인증 정보(쿠키 등) 허용
@@ -41,5 +46,7 @@ async function bootstrap() {
   //Prisma 환경설정 연결
   const prismaService = app.get(PrismaService);
   await prismaService.enableShutdownHooks(app);
+
+  echoMessage(`Server is running on port:  http://localhost:${port}`);
 }
 void bootstrap();
