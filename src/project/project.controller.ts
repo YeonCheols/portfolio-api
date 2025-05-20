@@ -30,6 +30,11 @@ export class ProjectController {
     return this.projectService.findAll();
   }
 
+  @Get(":slug")
+  findOne(@Param("slug") slug: string) {
+    return this.projectService.findOne(slug);
+  }
+
   // 특정 슬러그 중복 조회
   @Get("over-slug/:slug")
   findOverSlug(@Param("slug") slug: string) {

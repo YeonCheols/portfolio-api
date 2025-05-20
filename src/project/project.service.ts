@@ -34,10 +34,10 @@ export class ProjectService {
   }
 
   async findOverSlug(slug: string) {
-    const project = await this.prisma.projects.count({
+    const count = await this.prisma.projects.count({
       where: { slug },
     });
-    return project;
+    return count;
   }
 
   async updateShow(data: StatusUpdateDto) {
