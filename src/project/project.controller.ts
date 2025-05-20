@@ -11,6 +11,7 @@ import {
 import { ProjectService } from "./project.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
 import { UpdateProjectDto } from "./dto/update-project.dto";
+import { StatusUpdateDto } from "./dto/show-project.dto";
 
 @Controller("project")
 export class ProjectController {
@@ -29,16 +30,16 @@ export class ProjectController {
     return this.projectService.findAll();
   }
 
-  // 특정 슬러그로 프로젝트 조회
-  @Get(":slug")
-  findOne(@Param("slug") slug: string) {
-    return this.projectService.findOne(slug);
+  // 특정 슬러그 중복 조회
+  @Get("over-slug/:slug")
+  findOverSlug(@Param("slug") slug: string) {
+    return this.projectService.findOverSlug(slug);
   }
 
   // 프로젝트의 노출 상태 업데이트
-  @Post("show")
-  updateShow(@Body() slug: string, is_show: boolean) {
-    return this.projectService.updateShow(slug, is_show);
+  @Patch("show")
+  updateShow(@Body() body: StatusUpdateDto) {
+    return this.projectService.updateShow(body);
   }
 
   // 특정 슬러그로 프로젝트 업데이트
