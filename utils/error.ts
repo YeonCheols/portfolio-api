@@ -1,7 +1,8 @@
 import { ExceptionFilter, Catch, ArgumentsHost } from "@nestjs/common";
-import { Prisma } from "../prisma/generated/client";
+import { Prisma } from "@prisma/client";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
-@Catch(Prisma.PrismaClientKnownRequestError)
+@Catch(PrismaClientKnownRequestError)
 export class PrismaErrorFilter implements ExceptionFilter {
   catch(exception: Prisma.PrismaClientKnownRequestError, host: ArgumentsHost) {
     const ctx = host.switchToHttp();

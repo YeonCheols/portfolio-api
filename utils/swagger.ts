@@ -40,17 +40,23 @@ export function setupSwagger(app: INestApplication): void {
 
   const document = SwaggerModule.createDocument(app, options);
   const expressApp = app.getHttpAdapter().getInstance();
+  // 배포 환경별 path 설정
+  const buildPath = process.env.NODE_ENV === "prd" ? "swagger-static" : "api";
 
   SwaggerModule.setup("api", app, document, {
     ...swaggerCustomOptions,
     customJs: [
-      "../swagger-static/swagger-ui-bundle.js",
-      "../swagger-static/swagger-ui-standalone-preset.js",
+      `../${buildPath}/swagger-ui-bundle.js`,
+      `../${buildPath}/swagger-ui-standalone-preset.js`,
+      `../${buildPath}/swagger-ui-init.js`,
+      `../${buildPath}/swagger-ui.js`,
+      `../${buildPath}/swagger-ui-es-bundle-core.js`,
+      `../${buildPath}/swagger-ui-es-bundle.js`,
     ],
-    customCssUrl: "../swagger-static/swagger-ui.css",
+    customCssUrl: `../${buildPath}/swagger-ui.css`,
   });
   expressApp.use(
-    "/swagger-static",
-    express.static(join(__dirname, "..", "swagger-static")),
+    `/${buildPath}`,
+    express.static(join(__dirname, "..", buildPath)),
   );
 }
