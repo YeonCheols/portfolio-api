@@ -31,6 +31,11 @@ export class AdminProjectController {
     return this.adminProjectService.findOne(slug);
   }
 
+  @Get("over-slug/:slug")
+  findOneOverSlug(@Param("slug") slug: string) {
+    return this.adminProjectService.findOverSlug(slug);
+  }
+
   @Put(":slug")
   update(
     @Param("slug") slug: string,
