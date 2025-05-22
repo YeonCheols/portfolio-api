@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
+import { PrismaService } from "src/prisma/prisma.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
 import { UpdateProjectDto } from "./dto/update-project.dto";
-import { PrismaService } from "src/prisma/prisma.service";
 import { StatusUpdateDto } from "./dto/show-project.dto";
+
 @Injectable()
-export class ProjectService {
+export class AdminProjectService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateProjectDto) {
