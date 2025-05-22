@@ -34,7 +34,7 @@ export function setupSwagger(app: INestApplication): void {
         name: "JWT",
         in: "header",
       },
-      "access-token"
+      "access-token",
     )
     .build();
 
@@ -57,6 +57,6 @@ export function setupSwagger(app: INestApplication): void {
   });
   expressApp.use(
     `/${buildPath}`,
-    express.static(join(__dirname, "..", buildPath))
+    express.static(join(__dirname, "..", buildPath)),
   );
 }
