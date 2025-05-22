@@ -46,6 +46,13 @@ export function setupSwagger(app: INestApplication): void {
     customJs: [
       "../swagger-static/swagger-ui-bundle.js",
       "../swagger-static/swagger-ui-standalone-preset.js",
+      "../swagger-static/swagger-ui-init.js",
+      "../swagger-static/swagger-ui.js",
+      "../swagger-static/swagger-ui-es-bundle-core.js",
+      "../swagger-static/swagger-ui-es-bundle.js",
+      "../swagger-static/swagger-ui-standalone-preset-core.js",
+      "../swagger-static/swagger-ui-standalone-preset-es-bundle.js",
+      "../swagger-static/swagger-ui-standalone-preset-es-bundle-core.js",
     ],
     customCssUrl: "../swagger-static/swagger-ui.css",
   });
