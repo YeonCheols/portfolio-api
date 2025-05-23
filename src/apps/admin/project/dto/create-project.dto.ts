@@ -5,4 +5,7 @@ export class CreateProjectDto {
   image: string;
   stacks: string;
   content?: string;
+  link_demo?: string;
+  link_github?: string;
+  is_show?: boolean;
 }

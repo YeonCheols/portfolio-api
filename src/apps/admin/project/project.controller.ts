@@ -2,10 +2,10 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Delete,
   Body,
   Param,
+  Patch,
 } from "@nestjs/common";
 import { AdminProjectService } from "./project.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
@@ -36,7 +36,7 @@ export class AdminProjectController {
     return this.adminProjectService.findOverSlug(slug);
   }
 
-  @Put(":slug")
+  @Patch(":slug")
   update(
     @Param("slug") slug: string,
     @Body() updateProjectDto: UpdateProjectDto,
@@ -44,7 +44,7 @@ export class AdminProjectController {
     return this.adminProjectService.update(slug, updateProjectDto);
   }
 
-  @Put(":slug/show")
+  @Patch(":slug/show")
   updateShow(
     @Param("slug") slug: string,
     @Body() statusUpdateDto: StatusUpdateDto,
