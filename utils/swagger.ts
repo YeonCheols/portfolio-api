@@ -41,7 +41,10 @@ export function setupSwagger(app: INestApplication): void {
   const document = SwaggerModule.createDocument(app, options);
   const expressApp = app.getHttpAdapter().getInstance();
   // 배포 환경별 path 설정
-  const buildPath = process.env.NODE_ENV === "prd" ? "swagger-static" : "api";
+  const buildPath =
+    process.env.NODE_ENV === "dev" || process.env.NODE_ENV === "prd"
+      ? "swagger-static"
+      : "api";
 
   SwaggerModule.setup("api", app, document, {
     ...swaggerCustomOptions,

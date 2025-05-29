@@ -12,13 +12,14 @@ export class ProjectService {
       },
       orderBy: [
         {
-          id: "desc",
+          order: "desc",
         },
         {
           updatedAt: "desc",
         },
       ],
     });
+
     return projectList;
   }
 
