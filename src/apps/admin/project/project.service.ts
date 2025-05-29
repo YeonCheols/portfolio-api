@@ -42,12 +42,12 @@ export class AdminProjectService {
   }
 
   async updateShow(data: StatusUpdateDto) {
-    if (typeof data.slug !== "string" || typeof data.is_show !== "boolean") {
-      throw new Error("Invalid data types for slug or is_show");
+    if (typeof data.slug !== "string" || typeof data.isShow !== "boolean") {
+      throw new Error("Invalid data types for slug or isShow");
     }
     await this.prisma.project.update({
       where: { slug: data.slug },
-      data: { isShow: data.is_show },
+      data: { isShow: data.isShow },
     });
     return {
       status: 200,
