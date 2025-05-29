@@ -1,14 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { CreateProjectDto } from "./dto/create-project.dto";
-import { UpdateProjectDto } from "./dto/update-project.dto";
-import { StatusUpdateDto } from "./dto/show-project.dto";
+import {
+  AdminProjectCreateRequest,
+  AdminProjectUpdateRequest,
+  AdminProjectStatusUpdateRequest,
+} from "./dto";
 
 @Injectable()
 export class AdminProjectService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: CreateProjectDto) {
+  async create(data: AdminProjectCreateRequest) {
     const project = await this.prisma.project.create({ data });
     return project;
   }
@@ -41,7 +43,7 @@ export class AdminProjectService {
     return count;
   }
 
-  async updateShow(data: StatusUpdateDto) {
+  async updateShow(data: AdminProjectStatusUpdateRequest) {
     if (typeof data.slug !== "string" || typeof data.isShow !== "boolean") {
       throw new Error("Invalid data types for slug or isShow");
     }
@@ -55,7 +57,7 @@ export class AdminProjectService {
     };
   }
 
-  async update(slug: string, data: UpdateProjectDto) {
+  async update(slug: string, data: AdminProjectUpdateRequest) {
     await this.prisma.project.update({
       where: { slug },
       data,
