@@ -9,18 +9,18 @@ export class AdminProjectService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateProjectDto) {
-    const project = await this.prisma.projects.create({ data });
+    const project = await this.prisma.project.create({ data });
     return project;
   }
 
   async findAll() {
-    const projectList = await this.prisma.projects.findMany({
+    const projectList = await this.prisma.project.findMany({
       orderBy: [
         {
           id: "desc",
         },
         {
-          updated_at: "desc",
+          updatedAt: "desc",
         },
       ],
     });
@@ -28,14 +28,14 @@ export class AdminProjectService {
   }
 
   async findOne(slug: string) {
-    const project = await this.prisma.projects.findUnique({
+    const project = await this.prisma.project.findUnique({
       where: { slug },
     });
     return project;
   }
 
   async findOverSlug(slug: string) {
-    const count = await this.prisma.projects.count({
+    const count = await this.prisma.project.count({
       where: { slug },
     });
     return count;
@@ -45,9 +45,9 @@ export class AdminProjectService {
     if (typeof data.slug !== "string" || typeof data.is_show !== "boolean") {
       throw new Error("Invalid data types for slug or is_show");
     }
-    await this.prisma.projects.update({
+    await this.prisma.project.update({
       where: { slug: data.slug },
-      data: { is_show: data.is_show },
+      data: { isShow: data.is_show },
     });
     return {
       status: 200,
@@ -56,7 +56,7 @@ export class AdminProjectService {
   }
 
   async update(slug: string, data: UpdateProjectDto) {
-    await this.prisma.projects.update({
+    await this.prisma.project.update({
       where: { slug },
       data,
     });
@@ -67,7 +67,7 @@ export class AdminProjectService {
   }
 
   async remove(slug: string) {
-    await this.prisma.projects.delete({
+    await this.prisma.project.delete({
       where: { slug },
     });
     return {
