@@ -38,10 +38,10 @@ export class AdminProjectCreateRequest {
   content?: string;
 
   @ApiPropertyOptional({
-    description: "프로젝트 링크 이모지",
-    example: "🔗",
+    description: "프로젝트 데모 링크",
+    example: "https://example.com",
   })
-  linkEmo?: string;
+  linkDemo?: string;
 
   @ApiPropertyOptional({
     description: "GitHub 리포지토리 링크",
