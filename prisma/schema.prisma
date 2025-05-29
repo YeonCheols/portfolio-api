@@ -1,27 +1,46 @@
-
 generator client {
   provider = "prisma-client-js"
-  // output   = "./generated/client"
 }
 
 datasource db {
-  provider     = "postgresql"
-  url          = env("DATABASE_URL") // uses connection pooling
-  directUrl    = env("DATABASE_DIRECT_URL") // uses a direct connection
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
 }
 
-model projects {
+
+model Profile {
+  id          Int      @id @default(autoincrement())
+  imageUrl   String
+  isActive   Boolean  @default(true)
+  order       Int      @default(1)
+  updatedAt  DateTime @default(now())
+
+  @@index([order])
+} 
+
+model Project {
   id          Int      @id @default(autoincrement())
   title       String
   slug        String   @unique
   description String
   image       String
-  link_demo   String?
-  link_github String?
+  linkDemo   String?
+  linkGithub String?
   stacks      String
-  is_show     Boolean  @default(true)
-  updated_at  DateTime @default(now())
+  isShow     Boolean  @default(true)
+  updatedAt  DateTime @default(now())
   content     String?  @db.Text
-  is_featured Boolean  @default(false)
+  order       Int      @default(autoincrement())
+
+  tags        Tag[]    @relation("ProjectTags")
 }
 
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  updatedAt DateTime @default(now())
+
+  // Relations
+  projects Project[] @relation("ProjectTags")
+}

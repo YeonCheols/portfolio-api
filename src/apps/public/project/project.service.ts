@@ -6,16 +6,16 @@ export class ProjectService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    const projectList = await this.prisma.projects.findMany({
+    const projectList = await this.prisma.project.findMany({
       where: {
-        is_show: true,
+        isShow: true,
       },
       orderBy: [
         {
           id: "desc",
         },
         {
-          updated_at: "desc",
+          updatedAt: "desc",
         },
       ],
     });
@@ -23,10 +23,10 @@ export class ProjectService {
   }
 
   async findOne(slug: string) {
-    const project = await this.prisma.projects.findUnique({
+    const project = await this.prisma.project.findUnique({
       where: {
         slug,
-        is_show: true,
+        isShow: true,
       },
     });
     return project;

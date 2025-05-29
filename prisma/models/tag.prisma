@@ -1,0 +1,8 @@
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  updatedAt DateTime @default(now())
+
+  // Relations
+  projects Project[] @relation("ProjectTags")
+}
