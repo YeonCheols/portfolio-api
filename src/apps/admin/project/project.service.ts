@@ -4,6 +4,7 @@ import {
   AdminProjectCreateRequest,
   AdminProjectUpdateRequest,
   AdminProjectStatusUpdateRequest,
+  AdminProjectOrderUpdateRequest,
 } from "./dto";
 
 @Injectable()
@@ -19,7 +20,7 @@ export class AdminProjectService {
     const projectList = await this.prisma.project.findMany({
       orderBy: [
         {
-          id: "desc",
+          order: "desc",
         },
         {
           updatedAt: "desc",
@@ -43,6 +44,18 @@ export class AdminProjectService {
     return count;
   }
 
+  async update(slug: string, data: AdminProjectUpdateRequest) {
+    await this.prisma.project.update({
+      where: { slug },
+      data,
+    });
+    return {
+      status: 200,
+      message: "프로젝트 업데이트 success",
+    };
+  }
+
+
   async updateShow(data: AdminProjectStatusUpdateRequest) {
     if (typeof data.slug !== "string" || typeof data.isShow !== "boolean") {
       throw new Error("Invalid data types for slug or isShow");
@@ -57,16 +70,24 @@ export class AdminProjectService {
     };
   }
 
-  async update(slug: string, data: AdminProjectUpdateRequest) {
-    await this.prisma.project.update({
-      where: { slug },
-      data,
+  async updateOrder(data: AdminProjectOrderUpdateRequest) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { slug: data.nextSlug },
+        data: { order: data.nextOrderNo },
+      });
+      await tx.project.update({
+        where: { slug: data.prevSlug },
+        data: { order: data.prevOrderNo },
+      });
     });
+
     return {
       status: 200,
-      message: "프로젝트 업데이트 success",
+      message: "프로젝트 순서 업데이트 success",
     };
   }
+
 
   async remove(slug: string) {
     await this.prisma.project.delete({
