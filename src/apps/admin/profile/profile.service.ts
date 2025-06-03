@@ -45,5 +45,19 @@ export class AdminProfileService {
       where: { id },
       data,
     });
+    return {
+      status: 200,
+      message: "정렬 수정 success",
+    };
+  }
+
+  async remove(id: number) {
+    await this.prisma.profile.delete({
+      where: { id },
+    });
+    return {
+      status: 200,
+      message: "프로필 삭제 success",
+    };
   }
 }

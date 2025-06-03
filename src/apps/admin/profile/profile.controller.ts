@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param } from "@nestjs/common";
+import { Controller, Get, Post, Body, Patch, Param, Delete } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { AdminProfileService } from "./profile.service";
 import {
@@ -43,5 +43,11 @@ export class AdminProfileController {
     @Body() updateOrderDto: AdminProfileOrderUpdateRequest,
   ) {
     return this.adminProfileService.updateOrder(id, updateOrderDto);
+  }
+
+  @ApiOperation({ summary: "프로필 삭제" })
+  @Delete(":id")
+  remove(@Param("id") id: number) {
+    return this.adminProfileService.remove(id);
   }
 }

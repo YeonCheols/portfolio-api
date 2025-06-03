@@ -11,8 +11,8 @@ datasource db {
 model Profile {
   id          Int      @id @default(autoincrement())
   imageUrl   String
-  isActive   Boolean  @default(true)
-  order       Int      @default(1)
+  isActive   Boolean  @default(false)
+  order       Int      @default(autoincrement())
   updatedAt  DateTime @default(now())
 
   @@index([order])
