@@ -20,7 +20,7 @@ export class AdminProjectService {
     const projectList = await this.prisma.project.findMany({
       orderBy: [
         {
-          id: "desc",
+          order: "desc",
         },
         {
           updatedAt: "desc",
