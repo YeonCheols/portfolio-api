@@ -52,8 +52,10 @@ export class AdminProfileService {
   }
 
   async remove(id: number) {
+    const profileid = Number(id)
+    
     await this.prisma.profile.delete({
-      where: { id },
+      where: { id: profileid },
     });
     return {
       status: 200,
