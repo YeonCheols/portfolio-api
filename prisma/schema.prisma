@@ -9,14 +9,14 @@ datasource db {
 }
 
 model Profile {
-  id        Int      @id @default(autoincrement())
-  imageUrl  String
-  isActive  Boolean  @default(true)
-  order     Int      @default(1)
-  updatedAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  imageUrl   String
+  isActive   Boolean  @default(true)
+  order       Int      @default(1)
+  updatedAt  DateTime @default(now())
 
   @@index([order])
-}
+} 
 
 model Project {
   id          Int      @id @default(autoincrement())
@@ -24,19 +24,22 @@ model Project {
   slug        String   @unique
   description String
   image       String
+  linkDemo   String?
+  linkGithub String?
   stacks      String
-  content     String?
-  isShow      Boolean  @default(true)
-  linkDemo    String?
-  linkGithub  String?
+  isShow     Boolean  @default(true)
+  updatedAt  DateTime @default(now())
+  content     String?  @db.Text
   order       Int      @default(autoincrement())
-  updatedAt   DateTime @default(now())
+
   tags        Tag[]    @relation("ProjectTags")
 }
 
 model Tag {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  updatedAt DateTime  @default(now())
-  projects  Project[] @relation("ProjectTags")
+  id        String   @id @default(uuid())
+  name      String   @unique
+  updatedAt DateTime @default(now())
+
+  // Relations
+  projects Project[] @relation("ProjectTags")
 }
