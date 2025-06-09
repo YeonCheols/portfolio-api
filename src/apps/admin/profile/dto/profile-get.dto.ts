@@ -4,6 +4,10 @@ export class AdminProfileResponse {
   @ApiProperty({ description: "프로필 ID", example: 1 })
   id: number;
   @ApiProperty({
+    description: "프로필 이름",
+  })
+  name: string;
+  @ApiProperty({
     description: "프로필 이미지 URL",
     example: "https://example.com/profile.jpg",
   })
