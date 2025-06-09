@@ -59,7 +59,7 @@ export class AdminProfileController {
   @Put(":id")
   update(
     @Param("id") id: number,
-    @Body() updateProfileDto: AdminProfileUpdateRequest
+    @Body() updateProfileDto: AdminProfileUpdateRequest,
   ) {
     return this.adminProfileService.update(id, updateProfileDto);
   }
@@ -68,7 +68,7 @@ export class AdminProfileController {
   @Patch(":id")
   updateStatus(
     @Param("id") id: number,
-    @Body() updateProfileStatusDto: AdminProfileStatusUpdateRequest
+    @Body() updateProfileStatusDto: AdminProfileStatusUpdateRequest,
   ) {
     return this.adminProfileService.updateStatus(id, updateProfileStatusDto);
   }

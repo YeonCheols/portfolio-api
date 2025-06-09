@@ -15,10 +15,11 @@ export class AdminProfileService {
   async activeCount(
     prisma: Pick<PrismaClient, "profile">,
     isActiveRequest: boolean,
+    id?: number,
   ) {
     if (isActiveRequest) {
       const count = await prisma.profile.count({
-        where: { isActive: true },
+        where: { isActive: true, ...(id && { id: { not: id } }) },
       });
       if (count > 0) {
         throw new HttpException(
@@ -64,7 +65,7 @@ export class AdminProfileService {
 
   async update(id: number, data: AdminProfileUpdateRequest) {
     return this.prisma.$transaction(async (prisma) => {
-      await this.activeCount(prisma, data.isActive ?? false);
+      await this.activeCount(prisma, data.isActive ?? false, Number(id));
       const profile = await prisma.profile.update({
         where: { id: Number(id) },
         data,
@@ -80,14 +81,17 @@ export class AdminProfileService {
   async updateStatus(id: number, data: AdminProfileStatusUpdateRequest) {
     const profileId = Number(id);
 
-    await this.prisma.profile.update({
-      where: { id: profileId },
-      data,
+    return this.prisma.$transaction(async (prisma) => {
+      await this.activeCount(prisma, data.isActive ?? false, Number(id));
+      await prisma.profile.update({
+        where: { id: profileId },
+        data,
+      });
+      return {
+        status: 200,
+        message: "상태 업데이트 success",
+      };
     });
-    return {
-      status: 200,
-      message: "상태 업데이트 success",
-    };
   }
 
   async updateOrder(data: AdminProfileOrderUpdateRequest) {
