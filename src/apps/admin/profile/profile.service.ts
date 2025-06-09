@@ -1,19 +1,44 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
+import { PrismaClient } from "@prisma/client";
 import {
   AdminProfileCreateRequest,
   AdminProfileOrderUpdateRequest,
   AdminProfileStatusUpdateRequest,
   AdminProfileUpdateRequest,
 } from "./dto";
-
 @Injectable()
 export class AdminProfileService {
   constructor(private prisma: PrismaService) {}
 
+  // NOTE: 프로필 활성화 개수가 1개 이상이면 롤백함
+  async activeCount(
+    prisma: Pick<PrismaClient, "profile">,
+    isActiveRequest: boolean,
+  ) {
+    if (isActiveRequest) {
+      const count = await prisma.profile.count({
+        where: { isActive: true },
+      });
+      if (count > 0) {
+        throw new HttpException(
+          "이미 활성화된 프로필이 존재합니다. 프로필은 1개만 활성화 할 수 있습니다.",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+  }
+
   async create(data: AdminProfileCreateRequest) {
-    const project = await this.prisma.profile.create({ data });
-    return project;
+    return this.prisma.$transaction(async (prisma) => {
+      await this.activeCount(prisma, data.isActive ?? false);
+      const profile = await prisma.profile.create({ data });
+      return {
+        status: 200,
+        message: "프로필 생성 success",
+        data: profile,
+      };
+    });
   }
 
   async findAll() {
@@ -30,24 +55,26 @@ export class AdminProfileService {
     return profileList;
   }
 
-  async findOne(id: number) {
-    const profile = await this.prisma.profile.findUnique({
-      where: { id },
-    });
-    return profile;
-  }
-
   async update(id: number, data: AdminProfileUpdateRequest) {
-    const profile = await this.prisma.profile.update({
-      where: { id },
-      data,
+    return this.prisma.$transaction(async (prisma) => {
+      await this.activeCount(prisma, data.isActive ?? false);
+      const profile = await prisma.profile.update({
+        where: { id: Number(id) },
+        data,
+      });
+      return {
+        status: 200,
+        message: "프로필 수정 success",
+        data: profile,
+      };
     });
-    return profile;
   }
 
   async updateStatus(id: number, data: AdminProfileStatusUpdateRequest) {
+    const profileId = Number(id);
+
     await this.prisma.profile.update({
-      where: { id },
+      where: { id: profileId },
       data,
     });
     return {
@@ -57,8 +84,10 @@ export class AdminProfileService {
   }
 
   async updateOrder(data: AdminProfileOrderUpdateRequest) {
+    const profileId = Number(data.id);
+
     await this.prisma.profile.update({
-      where: { id: data.id },
+      where: { id: profileId },
       data,
     });
     return {

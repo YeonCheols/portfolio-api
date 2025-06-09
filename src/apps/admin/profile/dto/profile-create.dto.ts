@@ -15,7 +15,6 @@ export class AdminProfileCreateRequest {
   @ApiPropertyOptional({
     description: "프로필 활성화 여부",
     example: true,
-    default: true,
   })
   isActive?: boolean;
 }

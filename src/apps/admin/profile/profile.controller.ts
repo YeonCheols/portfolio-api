@@ -39,6 +39,13 @@ export class AdminProfileController {
     return this.adminProfileService.findAll();
   }
 
+  @ApiOperation({ summary: "프로필 정렬 변경" })
+  @Patch("order")
+  updateOrder(@Body() updateOrderDto: AdminProfileOrderUpdateRequest) {
+    return this.adminProfileService.updateOrder(updateOrderDto);
+  }
+
+  @ApiOperation({ summary: "프로필 정보 수정" })
   @Put(":id")
   update(
     @Param("id") id: number,
@@ -47,17 +54,13 @@ export class AdminProfileController {
     return this.adminProfileService.update(id, updateProfileDto);
   }
 
+  @ApiOperation({ summary: "프로필 상태 변경" })
   @Patch(":id")
   updateStatus(
     @Param("id") id: number,
     @Body() updateProfileStatusDto: AdminProfileStatusUpdateRequest,
   ) {
     return this.adminProfileService.updateStatus(id, updateProfileStatusDto);
-  }
-
-  @Patch("order")
-  updateOrder(@Body() updateOrderDto: AdminProfileOrderUpdateRequest) {
-    return this.adminProfileService.updateOrder(updateOrderDto);
   }
 
   @ApiOperation({ summary: "프로필 삭제" })
