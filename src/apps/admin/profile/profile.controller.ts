@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Put,
 } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { AdminProfileService } from "./profile.service";
@@ -13,6 +14,7 @@ import {
   AdminProfileCreateRequest,
   AdminProfileOrderUpdateRequest,
   AdminProfileResponse,
+  AdminProfileStatusUpdateRequest,
   AdminProfileUpdateRequest,
 } from "./dto";
 
@@ -37,7 +39,7 @@ export class AdminProfileController {
     return this.adminProfileService.findAll();
   }
 
-  @Patch(":id")
+  @Put(":id")
   update(
     @Param("id") id: number,
     @Body() updateProfileDto: AdminProfileUpdateRequest,
@@ -46,11 +48,16 @@ export class AdminProfileController {
   }
 
   @Patch(":id")
-  updateOrder(
+  updateStatus(
     @Param("id") id: number,
-    @Body() updateOrderDto: AdminProfileOrderUpdateRequest,
+    @Body() updateProfileStatusDto: AdminProfileStatusUpdateRequest,
   ) {
-    return this.adminProfileService.updateOrder(id, updateOrderDto);
+    return this.adminProfileService.updateStatus(id, updateProfileStatusDto);
+  }
+
+  @Patch("order")
+  updateOrder(@Body() updateOrderDto: AdminProfileOrderUpdateRequest) {
+    return this.adminProfileService.updateOrder(updateOrderDto);
   }
 
   @ApiOperation({ summary: "프로필 삭제" })
