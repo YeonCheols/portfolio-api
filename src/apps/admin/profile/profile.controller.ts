@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { AdminProfileService } from "./profile.service";
 import {

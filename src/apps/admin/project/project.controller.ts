@@ -60,12 +60,10 @@ export class AdminProjectController {
 
   @ApiOperation({ summary: "프로젝트 정렬 순서 업데이트" })
   @Patch("/order")
-  updateOrder(
-    @Body() orderUpdateDto: AdminProjectOrderUpdateRequest,
-  ) {
+  updateOrder(@Body() orderUpdateDto: AdminProjectOrderUpdateRequest) {
     return this.adminProjectService.updateOrder(orderUpdateDto);
   }
-  
+
   @ApiOperation({ summary: "프로젝트 업데이트" })
   @Patch(":slug")
   update(

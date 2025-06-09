@@ -1,6 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { AdminProfileCreateRequest, AdminProfileOrderUpdateRequest, AdminProfileUpdateRequest } from "./dto";
+import {
+  AdminProfileCreateRequest,
+  AdminProfileOrderUpdateRequest,
+  AdminProfileUpdateRequest,
+} from "./dto";
 
 @Injectable()
 export class AdminProfileService {
@@ -52,10 +56,10 @@ export class AdminProfileService {
   }
 
   async remove(id: number) {
-    const profileid = Number(id)
-    
+    const profileId = Number(id);
+
     await this.prisma.profile.delete({
-      where: { id: profileid },
+      where: { id: profileId },
     });
     return {
       status: 200,

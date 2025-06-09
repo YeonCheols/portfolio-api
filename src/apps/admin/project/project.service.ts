@@ -55,7 +55,6 @@ export class AdminProjectService {
     };
   }
 
-
   async updateShow(data: AdminProjectStatusUpdateRequest) {
     if (typeof data.slug !== "string" || typeof data.isShow !== "boolean") {
       throw new Error("Invalid data types for slug or isShow");
@@ -87,7 +86,6 @@ export class AdminProjectService {
       message: "프로젝트 순서 업데이트 success",
     };
   }
-
 
   async remove(slug: string) {
     await this.prisma.project.delete({
