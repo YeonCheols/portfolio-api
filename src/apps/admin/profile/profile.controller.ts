@@ -39,6 +39,16 @@ export class AdminProfileController {
     return this.adminProfileService.findAll();
   }
 
+  @ApiOperation({ summary: "특정 프로필 조회" })
+  @ApiOkResponse({
+    description: "프로필 조회 성공",
+    type: AdminProfileResponse,
+  })
+  @Get(":id")
+  findOne(@Param("id") id: number) {
+    return this.adminProfileService.findOne(id);
+  }
+
   @ApiOperation({ summary: "프로필 정렬 변경" })
   @Patch("order")
   updateOrder(@Body() updateOrderDto: AdminProfileOrderUpdateRequest) {
@@ -49,7 +59,7 @@ export class AdminProfileController {
   @Put(":id")
   update(
     @Param("id") id: number,
-    @Body() updateProfileDto: AdminProfileUpdateRequest,
+    @Body() updateProfileDto: AdminProfileUpdateRequest
   ) {
     return this.adminProfileService.update(id, updateProfileDto);
   }
@@ -58,7 +68,7 @@ export class AdminProfileController {
   @Patch(":id")
   updateStatus(
     @Param("id") id: number,
-    @Body() updateProfileStatusDto: AdminProfileStatusUpdateRequest,
+    @Body() updateProfileStatusDto: AdminProfileStatusUpdateRequest
   ) {
     return this.adminProfileService.updateStatus(id, updateProfileStatusDto);
   }

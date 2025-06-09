@@ -55,6 +55,13 @@ export class AdminProfileService {
     return profileList;
   }
 
+  async findOne(id: number) {
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: Number(id) },
+    });
+    return profile;
+  }
+
   async update(id: number, data: AdminProfileUpdateRequest) {
     return this.prisma.$transaction(async (prisma) => {
       await this.activeCount(prisma, data.isActive ?? false);
