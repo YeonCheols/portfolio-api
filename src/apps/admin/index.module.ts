@@ -1,11 +1,8 @@
 import { Module } from "@nestjs/common";
-import { AdminProjectController } from "./project/project.controller";
-import { AdminProjectService } from "./project/project.service";
-import { AdminProfileController } from "./profile/profile.controller";
-import { AdminProfileService } from "./profile/profile.service";
+import { AdminProfileModule } from "./profile/profile.module";
+import { AdminProjectModule } from "./project/project.module";
 
 @Module({
-  controllers: [AdminProjectController, AdminProfileController],
-  providers: [AdminProjectService, AdminProfileService],
+  imports: [AdminProfileModule, AdminProjectModule],
 })
 export class AdminModule {}
