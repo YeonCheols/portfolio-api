@@ -10,6 +10,7 @@ datasource db {
 
 model Profile {
   id          Int      @id @default(autoincrement())
+  name       String @default("")
   imageUrl   String
   isActive   Boolean  @default(false)
   order       Int      @default(autoincrement())

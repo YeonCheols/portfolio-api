@@ -2,6 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class AdminProfileCreateRequest {
   @ApiProperty({
+    description: "프로필 이름",
+    example: "1번 프로필",
+  })
+  name: string;
+  @ApiProperty({
     description: "프로필 이미지 URL",
     example: "https://example.com/profile.jpg",
   })
