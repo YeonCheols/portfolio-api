@@ -8,7 +8,7 @@ import {
   Delete,
   Put,
 } from "@nestjs/common";
-import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
+import { ApiOperation, ApiOkResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { AdminProfileService } from "./profile.service";
 import {
   AdminProfileCreateRequest,
@@ -17,10 +17,13 @@ import {
   AdminProfileStatusUpdateRequest,
   AdminProfileUpdateRequest,
 } from "./dto";
+import { AdminAuthController } from "../auth/auth.controller";
 
 @Controller("admin/profile")
-export class AdminProfileController {
-  constructor(private readonly adminProfileService: AdminProfileService) {}
+export class AdminProfileController extends AdminAuthController {
+  constructor(private readonly adminProfileService: AdminProfileService) {
+    super();
+  }
 
   @ApiOperation({ summary: "프로필 생성" })
   @Post()
@@ -28,6 +31,7 @@ export class AdminProfileController {
     return this.adminProfileService.create(createProfileDto);
   }
 
+  @ApiBearerAuth("access-token")
   @ApiOperation({ summary: "모든 프로필 조회" })
   @ApiOkResponse({
     description: "프로필 조회 성공",
