@@ -1,13 +1,14 @@
 import { Body, Controller, Post, UnauthorizedException } from "@nestjs/common";
-import { UserService } from "./user.service";
+import { AdminUserService } from "./user.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { LoginUserDto } from "./dto/login-user.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
 
 @Controller("admin/user")
-export class UserController {
-  constructor(private readonly userService: UserService) {}
+export class AdminUserController {
+  constructor(private readonly userService: AdminUserService) {}
 
   @Post("join")
   async join(@Body() createUserDto: CreateUserDto) {
@@ -21,11 +22,18 @@ export class UserController {
     if (!user) throw new UnauthorizedException("Invalid credentials");
     const isMatch = await bcrypt.compare(loginUserDto.password, user.password);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
-    const token = jwt.sign(
-      { sub: user.id, email: user.email },
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "1d" },
-    );
+    const token = jwt.sign({ sub: user.id, email: user.email }, "secret", {
+      expiresIn: "1d",
+    });
     return { accessToken: token };
+  }
+
+  @Post("reset-password")
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    const user = await this.userService.resetPassword(resetPasswordDto);
+    return {
+      response: user,
+      message: "Password has been reset successfully",
+    };
   }
 }
