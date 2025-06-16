@@ -16,10 +16,13 @@ import {
   AdminProjectResponse,
   AdminProjectOrderUpdateRequest,
 } from "./dto";
+import { AdminAuthController } from "../auth/auth.controller";
 
 @Controller("admin/project")
-export class AdminProjectController {
-  constructor(private readonly adminProjectService: AdminProjectService) {}
+export class AdminProjectController extends AdminAuthController {
+  constructor(private readonly adminProjectService: AdminProjectService) {
+    super();
+  }
 
   @ApiOperation({ summary: "프로젝트 생성" })
   @Post()
