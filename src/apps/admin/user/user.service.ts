@@ -4,9 +4,11 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { CreateUserDto } from "./dto/create-user.dto";
-import { LoginUserDto } from "./dto/login-user.dto";
-import { ResetPasswordDto } from "./dto/reset-password.dto";
+import {
+  AdminCreateUserDto,
+  AdminLoginUserDto,
+  AdminResetPasswordDto,
+} from "./dto";
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
 
@@ -14,7 +16,7 @@ import * as jwt from "jsonwebtoken";
 export class AdminUserService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: AdminCreateUserDto) {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
     return this.prisma.adminUser.create({
       data: {
@@ -28,7 +30,7 @@ export class AdminUserService {
     return this.prisma.adminUser.findUnique({ where: { email } });
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(resetPasswordDto: AdminResetPasswordDto) {
     const user = await this.findByEmail(resetPasswordDto.email);
     if (!user) {
       throw new NotFoundException("User not found");
@@ -41,7 +43,7 @@ export class AdminUserService {
     });
   }
 
-  async login(loginUserDto: LoginUserDto) {
+  async login(loginUserDto: AdminLoginUserDto) {
     const user = await this.findByEmail(loginUserDto.email);
     if (!user) throw new UnauthorizedException("Invalid credentials");
 
