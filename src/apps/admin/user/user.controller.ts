@@ -34,8 +34,8 @@ export class AdminUserController {
 
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: false,
+      sameSite: "none",
     });
     return { user, accessToken };
   }
@@ -70,8 +70,8 @@ export class AdminUserController {
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie("access_token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: true,
+      sameSite: "none",
     });
     return { message: "로그아웃 되었습니다." };
   }
