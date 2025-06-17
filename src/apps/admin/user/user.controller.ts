@@ -28,7 +28,7 @@ export class AdminUserController {
   @Post("login")
   async login(
     @Body() loginUserDto: AdminLoginRequest,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ) {
     const { user, accessToken } = await this.userService.login(loginUserDto);
 
