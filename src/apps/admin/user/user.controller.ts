@@ -1,8 +1,10 @@
 import { Body, Controller, Post } from "@nestjs/common";
+import { ApiOkResponse } from "@nestjs/swagger";
 import { AdminUserService } from "./user.service";
 import {
   AdminCreateUserRequest,
   AdminLoginRequest,
+  AdminLoginResponse,
   AdminResetPasswordRequest,
 } from "./dto";
 
@@ -16,10 +18,14 @@ export class AdminUserController {
     return { id: user.id, email: user.email };
   }
 
+  @ApiOkResponse({
+    description: "로그인 성공",
+    type: AdminLoginResponse,
+  })
   @Post("login")
   async login(@Body() loginUserDto: AdminLoginRequest) {
-    const { accessToken } = await this.userService.login(loginUserDto);
-    return { accessToken };
+    const { user, accessToken } = await this.userService.login(loginUserDto);
+    return { user, accessToken };
   }
 
   @Post("reset-password")

@@ -56,6 +56,9 @@ export class AdminUserService {
       { expiresIn: "1d" },
     );
 
-    return { accessToken: token };
+    return {
+      user: { id: user.id, email: user.email },
+      accessToken: token,
+    };
   }
 }

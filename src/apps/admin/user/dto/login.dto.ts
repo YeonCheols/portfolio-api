@@ -7,3 +7,18 @@ export class AdminLoginRequest {
   @ApiProperty({ example: "password123" })
   password: string;
 }
+
+export class AdminLoginResponse {
+  @ApiProperty({ example: "1234" })
+  accessToken: string;
+  @ApiProperty({
+    example: {
+      id: 1,
+      email: "admin@example.com",
+    },
+  })
+  user: {
+    id: number;
+    email: string;
+  };
+}
