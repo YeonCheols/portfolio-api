@@ -1,9 +1,9 @@
 import { Body, Controller, Post } from "@nestjs/common";
 import { AdminUserService } from "./user.service";
 import {
-  AdminCreateUserDto,
-  AdminLoginUserDto,
-  AdminResetPasswordDto,
+  AdminCreateUserRequest,
+  AdminLoginRequest,
+  AdminResetPasswordRequest,
 } from "./dto";
 
 @Controller("admin/user")
@@ -11,19 +11,19 @@ export class AdminUserController {
   constructor(private readonly userService: AdminUserService) {}
 
   @Post("join")
-  async join(@Body() createUserDto: AdminCreateUserDto) {
+  async join(@Body() createUserDto: AdminCreateUserRequest) {
     const user = await this.userService.create(createUserDto);
     return { id: user.id, email: user.email };
   }
 
   @Post("login")
-  async login(@Body() loginUserDto: AdminLoginUserDto) {
+  async login(@Body() loginUserDto: AdminLoginRequest) {
     const { accessToken } = await this.userService.login(loginUserDto);
     return { accessToken };
   }
 
   @Post("reset-password")
-  async resetPassword(@Body() resetPasswordDto: AdminResetPasswordDto) {
+  async resetPassword(@Body() resetPasswordDto: AdminResetPasswordRequest) {
     const user = await this.userService.resetPassword(resetPasswordDto);
     return {
       response: user,
