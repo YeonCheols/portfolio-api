@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Post, Res } from "@nestjs/common";
 import { ApiOkResponse } from "@nestjs/swagger";
 import { AdminUserService } from "./user.service";
 import {
@@ -7,6 +7,7 @@ import {
   AdminLoginResponse,
   AdminResetPasswordRequest,
 } from "./dto";
+import { Response } from "express";
 
 @Controller("admin/user")
 export class AdminUserController {
@@ -23,8 +24,17 @@ export class AdminUserController {
     type: AdminLoginResponse,
   })
   @Post("login")
-  async login(@Body() loginUserDto: AdminLoginRequest) {
+  async login(
+    @Body() loginUserDto: AdminLoginRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const { user, accessToken } = await this.userService.login(loginUserDto);
+
+    res.cookie("access_token", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
     return { user, accessToken };
   }
 
