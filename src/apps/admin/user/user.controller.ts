@@ -1,5 +1,5 @@
-import { Body, Controller, Post, Res } from "@nestjs/common";
-import { ApiOkResponse } from "@nestjs/swagger";
+import { Body, Controller, Post, Res, Get, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiOkResponse } from "@nestjs/swagger";
 import { AdminUserService } from "./user.service";
 import {
   AdminCreateUserRequest,
@@ -8,6 +8,8 @@ import {
   AdminResetPasswordRequest,
 } from "./dto";
 import { Response } from "express";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { GetUser } from "../auth/get-user.decorator";
 
 @Controller("admin/user")
 export class AdminUserController {
@@ -44,6 +46,21 @@ export class AdminUserController {
     return {
       response: user,
       message: "Password has been reset successfully",
+    };
+  }
+
+  @ApiBearerAuth("access-token")
+  @UseGuards(JwtAuthGuard)
+  @Get("auth/check")
+  @ApiOkResponse({
+    description: "토큰 유효성 검증 및 사용자 정보 조회",
+  })
+  authCheck(@GetUser() user) {
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+      },
     };
   }
 }
