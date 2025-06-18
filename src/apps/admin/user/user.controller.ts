@@ -34,7 +34,7 @@ export class AdminUserController {
 
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: false,
+      secure: true,
       sameSite: "none",
     });
     return { user, accessToken };
