@@ -36,6 +36,7 @@ export class AdminUserController {
       httpOnly: true,
       secure: true,
       sameSite: "none",
+      maxAge: 60 * 60 * 24,
     });
     return { user, accessToken };
   }
