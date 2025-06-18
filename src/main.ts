@@ -31,7 +31,8 @@ async function bootstrap() {
       "https://ycseng.vercel.app",
       "https://dev-ycseng-admin.vercel.app",
       "https://ycseng-admin.vercel.app",
-    ], // 허용할 오리진 배열
+      /^https?:\/\/localhost:\d+$/, // 로컬호스트의 모든 포트 허용
+    ],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
     exposedHeaders: ["Authorization"], // 응답에서 노출할 헤더
