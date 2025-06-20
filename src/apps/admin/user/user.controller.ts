@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Res, Get, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Post,
+  Res,
+  Get,
+  UseGuards,
+  Req,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiOkResponse } from "@nestjs/swagger";
 import { AdminUserService } from "./user.service";
 import {
@@ -7,13 +15,45 @@ import {
   AdminLoginResponse,
   AdminResetPasswordRequest,
 } from "./dto";
-import { Response } from "express";
+import { Response, Request } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GetUser } from "../auth/get-user.decorator";
 
 @Controller("admin/user")
 export class AdminUserController {
   constructor(private readonly userService: AdminUserService) {}
+
+  // NOTE: 서버에서 자동으로 도메인 추출
+  private extractDomain(req: Request): string | undefined {
+    const origin = req.headers.origin;
+    if (origin) {
+      try {
+        const url = new URL(origin);
+        return url.hostname;
+      } catch {
+        // URL 파싱 실패 시 null 반환
+      }
+    }
+
+    // Host 헤더에서 도메인 추출 (Origin이 없는 경우)
+    const host = req.headers.host;
+    if (host) {
+      return host.split(":")[0]; // 포트 제거
+    }
+
+    // Referer 헤더에서 도메인 추출
+    const referer = req.headers.referer;
+    if (referer) {
+      try {
+        const url = new URL(referer);
+        return url.hostname;
+      } catch {
+        // URL 파싱 실패 시 null 반환
+      }
+    }
+
+    return undefined;
+  }
 
   @Post("join")
   async join(@Body() createUserDto: AdminCreateUserRequest) {
@@ -29,14 +69,18 @@ export class AdminUserController {
   async login(
     @Body() loginUserDto: AdminLoginRequest,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ) {
     const { user, accessToken } = await this.userService.login(loginUserDto);
 
+    const domain = this.extractDomain(req);
+
     res.cookie("access_token", accessToken, {
-      httpOnly: false,
+      httpOnly: true,
       secure: true,
       sameSite: "none",
-      maxAge: 60 * 60 * 24,
+      path: "/",
+      domain: domain, // 자동으로 추출한 도메인 설정
     });
     return { user, accessToken };
   }
@@ -68,11 +112,16 @@ export class AdminUserController {
   @ApiBearerAuth("access-token")
   @UseGuards(JwtAuthGuard)
   @Post("logout")
-  logout(@Res({ passthrough: true }) res: Response) {
+  logout(@Res({ passthrough: true }) res: Response, @Req() req: Request) {
+    // 서버에서 자동으로 도메인 추출
+    const domain = this.extractDomain(req);
+
     res.clearCookie("access_token", {
       httpOnly: true,
       secure: true,
       sameSite: "none",
+      path: "/",
+      domain: domain, // 자동으로 추출한 도메인 설정
     });
     return { message: "로그아웃 되었습니다." };
   }
