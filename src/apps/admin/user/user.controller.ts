@@ -92,13 +92,20 @@ export class AdminUserController {
     }
 
     // HTTPS 환경에서만 secure와 sameSite 설정
-    if (isHttps) {
+    if (isLocalhost && isHttps) {
+      // 로컬 HTTPS 환경에서는 secure를 false로 설정 (브라우저 호환성)
+      cookieOptions.secure = false;
+      cookieOptions.sameSite = "lax";
+    } else if (isHttps) {
+      // 프로덕션 HTTPS 환경
       cookieOptions.secure = true;
       cookieOptions.sameSite = "none";
     } else {
       // HTTP 환경에서는 sameSite를 lax로 설정
       cookieOptions.sameSite = "lax";
     }
+
+    console.info("cookieOptions : ", cookieOptions);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     res.cookie("access_token", accessToken, cookieOptions);
@@ -151,7 +158,12 @@ export class AdminUserController {
     }
 
     // HTTPS 환경에서만 secure와 sameSite 설정
-    if (isHttps) {
+    if (isLocalhost && isHttps) {
+      // 로컬 HTTPS 환경에서는 secure를 false로 설정 (브라우저 호환성)
+      cookieOptions.secure = false;
+      cookieOptions.sameSite = "lax";
+    } else if (isHttps) {
+      // 프로덕션 HTTPS 환경
       cookieOptions.secure = true;
       cookieOptions.sameSite = "none";
     } else {
