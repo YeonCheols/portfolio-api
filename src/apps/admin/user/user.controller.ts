@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post,
-  Res,
-  Get,
-  UseGuards,
-  Req,
-} from "@nestjs/common";
+import { Body, Controller, Post, Res, Get, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOkResponse } from "@nestjs/swagger";
 import { AdminUserService } from "./user.service";
 import {
@@ -15,7 +7,7 @@ import {
   AdminLoginResponse,
   AdminResetPasswordRequest,
 } from "./dto";
-import { Response, Request } from "express";
+import { Response } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GetUser } from "../auth/get-user.decorator";
 
@@ -37,20 +29,14 @@ export class AdminUserController {
   async login(
     @Body() loginUserDto: AdminLoginRequest,
     @Res({ passthrough: true }) res: Response,
-    @Req() req: Request,
   ) {
     const { user, accessToken } = await this.userService.login(loginUserDto);
 
-    const origin = req.headers.origin;
-    const domain = origin ? new URL(origin).hostname : ".localhost";
-
     res.cookie("access_token", accessToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: true,
       sameSite: "none",
       maxAge: 60 * 60 * 24,
-      domain,
-      path: "/",
     });
     return { user, accessToken };
   }
