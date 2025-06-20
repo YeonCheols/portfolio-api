@@ -87,7 +87,7 @@ export class AdminUserController {
     };
 
     // 로컬호스트가 아닌 경우에만 도메인 설정
-    if (domain && !isLocalhost) {
+    if (domain) {
       cookieOptions.domain = domain;
     }
 
@@ -96,10 +96,6 @@ export class AdminUserController {
       // 로컬 HTTPS 환경에서는 secure를 false로 설정 (브라우저 호환성)
       cookieOptions.secure = false;
       cookieOptions.sameSite = "lax";
-    } else if (isHttps) {
-      // 프로덕션 HTTPS 환경
-      cookieOptions.secure = true;
-      cookieOptions.sameSite = "none";
     } else {
       // HTTP 환경에서는 sameSite를 lax로 설정
       cookieOptions.sameSite = "lax";
