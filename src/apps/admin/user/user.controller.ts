@@ -74,16 +74,34 @@ export class AdminUserController {
     const { user, accessToken } = await this.userService.login(loginUserDto);
 
     const domain = this.extractDomain(req);
+    const isLocalhost = domain === "localhost" || domain?.includes("localhost");
+    const isHttps = req.headers["x-forwarded-proto"] === "https" || req.secure;
 
     console.info("domain : ", domain);
+    console.info("isLocalhost : ", isLocalhost);
+    console.info("isHttps : ", isHttps);
 
-    res.cookie("access_token", accessToken, {
+    const cookieOptions: any = {
       httpOnly: true, // JavaScript에서 접근 불가
-      secure: true, // HTTPS에서만 전송
-      sameSite: "none",
       path: "/",
-      domain: domain,
-    });
+    };
+
+    // 로컬호스트가 아닌 경우에만 도메인 설정
+    if (domain && !isLocalhost) {
+      cookieOptions.domain = domain;
+    }
+
+    // HTTPS 환경에서만 secure와 sameSite 설정
+    if (isHttps) {
+      cookieOptions.secure = true;
+      cookieOptions.sameSite = "none";
+    } else {
+      // HTTP 환경에서는 sameSite를 lax로 설정
+      cookieOptions.sameSite = "lax";
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    res.cookie("access_token", accessToken, cookieOptions);
 
     // 응답 본문에서는 토큰을 제거하고 사용자 정보만 반환
     return { user };
@@ -119,14 +137,29 @@ export class AdminUserController {
   logout(@Res({ passthrough: true }) res: Response, @Req() req: Request) {
     // 서버에서 자동으로 도메인 추출
     const domain = this.extractDomain(req);
+    const isLocalhost = domain === "localhost" || domain?.includes("localhost");
+    const isHttps = req.headers["x-forwarded-proto"] === "https" || req.secure;
 
-    res.clearCookie("access_token", {
+    const cookieOptions: any = {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
       path: "/",
-      domain: domain, // 자동으로 추출한 도메인 설정
-    });
+    };
+
+    // 로컬호스트가 아닌 경우에만 도메인 설정
+    if (domain && !isLocalhost) {
+      cookieOptions.domain = domain;
+    }
+
+    // HTTPS 환경에서만 secure와 sameSite 설정
+    if (isHttps) {
+      cookieOptions.secure = true;
+      cookieOptions.sameSite = "none";
+    } else {
+      // HTTP 환경에서는 sameSite를 lax로 설정
+      cookieOptions.sameSite = "lax";
+    }
+
+    res.clearCookie("access_token", cookieOptions);
     return { message: "로그아웃 되었습니다." };
   }
 }
