@@ -76,8 +76,8 @@ export class AdminUserController {
     const domain = this.extractDomain(req);
 
     res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: true,
+      httpOnly: false,
+      secure: false,
       sameSite: "none",
       path: "/",
       domain: domain, // 자동으로 추출한 도메인 설정
