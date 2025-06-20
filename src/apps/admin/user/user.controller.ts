@@ -77,7 +77,7 @@ export class AdminUserController {
 
     res.cookie("access_token", accessToken, {
       httpOnly: false,
-      secure: false,
+      secure: true,
       sameSite: "none",
       path: "/",
       domain: domain, // 자동으로 추출한 도메인 설정
