@@ -75,14 +75,18 @@ export class AdminUserController {
 
     const domain = this.extractDomain(req);
 
+    console.info("domain : ", domain);
+
     res.cookie("access_token", accessToken, {
-      httpOnly: false,
-      secure: true,
+      httpOnly: true, // JavaScript에서 접근 불가
+      secure: true, // HTTPS에서만 전송
       sameSite: "none",
       path: "/",
-      domain: domain, // 자동으로 추출한 도메인 설정
+      domain: domain,
     });
-    return { user, accessToken };
+
+    // 응답 본문에서는 토큰을 제거하고 사용자 정보만 반환
+    return { user };
   }
 
   @Post("reset-password")
