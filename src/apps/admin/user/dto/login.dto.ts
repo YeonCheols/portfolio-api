@@ -9,8 +9,6 @@ export class AdminLoginRequest {
 }
 
 export class AdminLoginResponse {
-  @ApiProperty({ example: "1234" })
-  accessToken: string;
   @ApiProperty({
     example: {
       id: 1,
