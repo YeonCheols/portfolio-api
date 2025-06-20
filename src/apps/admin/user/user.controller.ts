@@ -76,7 +76,7 @@ export class AdminUserController {
     const domain = this.extractDomain(req);
 
     res.cookie("access_token", accessToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: true,
       sameSite: "none",
       path: "/",
