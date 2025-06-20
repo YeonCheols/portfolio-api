@@ -75,6 +75,8 @@ export class AdminUserController {
 
     const domain = this.extractDomain(req);
 
+    console.info("domain : ", domain);
+
     res.cookie("access_token", accessToken, {
       httpOnly: true, // JavaScript에서 접근 불가
       secure: true, // HTTPS에서만 전송
