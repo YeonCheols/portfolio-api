@@ -3,30 +3,29 @@ import { AppModule } from "./app.module";
 import { PrismaService } from "./prisma/prisma.service";
 import { setupSwagger } from "../utils/swagger";
 import { echoMessage } from "../utils/log";
-
-interface Error {
-  code: string;
-}
+import * as fs from "fs";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  let port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
+  // HTTPS 옵션 설정
+  const httpsOptions = {
+    key: fs.readFileSync("./cert/local.ycseng.com-key.pem"),
+    cert: fs.readFileSync("./cert/local.ycseng.com.pem"),
+  };
 
-  app.listen(port).catch(async (err: Error) => {
-    if (err.code === "EADDRINUSE") {
-      echoMessage(`next port: ${port + 1}`);
-      echoMessage(`Server is running on port: http://localhost:${port + 1}`);
-      await app.listen(port + 1);
-      port = port + 1;
-    } else {
-      throw err;
-    }
+  // NestJS 앱을 HTTPS 옵션과 함께 생성
+  const app = await NestFactory.create(AppModule, {
+    httpsOptions,
   });
+
+  let port = 4001;
+
   app.enableCors({
     origin: [
       "http://localhost:3000",
       "http://localhost:5001",
       "https://localhost:5001",
+      "http://local.ycseng.com:5001",
+      "https://local.ycseng.com:5001",
       "https://dev-ycseng.vercel.app",
       "https://ycseng.vercel.app",
       "https://dev-ycseng-admin.vercel.app",
@@ -48,6 +47,22 @@ async function bootstrap() {
   const prismaService = app.get(PrismaService);
   await prismaService.enableShutdownHooks(app);
 
-  echoMessage(`Server is running on port:  http://localhost:${port}`);
+  // 서버 시작 (포트 충돌 시 자동으로 다음 포트 시도)
+  try {
+    await app.listen(port);
+    echoMessage(
+      `Server is running on port: https://local.ycseng.com:${port}/api`,
+    );
+  } catch (error) {
+    if (error.code === "EADDRINUSE") {
+      port = port + 1;
+      await app.listen(port);
+      echoMessage(
+        `Server is running on port: https://local.ycseng.com:${port}/api`,
+      );
+    } else {
+      throw error;
+    }
+  }
 }
 void bootstrap();
