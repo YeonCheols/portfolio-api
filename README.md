@@ -16,6 +16,7 @@ portfolio-api/
 ├── prisma/               # Prisma 설정 및 마이그레이션 파일
 ├── test/                # 테스트 파일
 ├── dist/               # 컴파일된 파일
+├── server.js           # 커스텀 서버 설정 (HTTPS 지원)
 ├── lib/               # 공통 라이브러리
 └── node_modules/      # 의존성 패키지
 ```
@@ -47,15 +48,46 @@ pnpm vercel env pull
 # 데이터베이스 마이그레이션
 pnpm prisma migrate dev
 
+# 프로젝트 빌드
+pnpm run build
+```
+
+### 서버 실행
+
+#### 기본 HTTP 서버
+
+```bash
 # 개발 서버 실행
 pnpm start:dev
+
+# 프로덕션 서버 실행
+pnpm start:prod
 ```
+
+#### 커스텀 HTTPS 서버 (server.js)
+
+```bash
+# HTTPS 서버 실행 (개발 환경)
+pnpm run start:https
+
+# HTTPS 서버 실행 (프로덕션 환경)
+pnpm run start:https:prod
+```
+
+**참고**: HTTPS 서버를 사용하려면 `cert/` 디렉토리에 다음 인증서 파일이 필요합니다:
+
+- `cert/local.po.pem` (개인키)
+- `cert/cert.pem` (인증서)
+
+인증서 파일이 없는 경우 자동으로 HTTP 서버로 대체됩니다.
 
 ## API 문서
 
 API 문서는 Swagger를 통해 제공됩니다. 서버 실행 후 다음 URL에서 확인할 수 있습니다:
+
 ```
 http://localhost:4000/api
+https://local.ycseng.com:4000/api (HTTPS 서버 사용 시)
 ```
 
 ## 배포
