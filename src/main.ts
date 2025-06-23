@@ -2,7 +2,6 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { PrismaService } from "./prisma/prisma.service";
 import { setupSwagger } from "../utils/swagger";
-import { echoMessage } from "../utils/log";
 import * as fs from "fs";
 
 async function bootstrap() {
@@ -47,18 +46,24 @@ async function bootstrap() {
   const prismaService = app.get(PrismaService);
   await prismaService.enableShutdownHooks(app);
 
+  const strings = {
+    ready: "[ \x1b[32mready\x1b[0m ]",
+    http: "\x1b[43mHTTP\x1b[0m",
+    https: "\x1b[44mHTTPS\x1b[0m",
+  };
+
   // 서버 시작 (포트 충돌 시 자동으로 다음 포트 시도)
   try {
     await app.listen(port);
-    echoMessage(
-      `Server is running on port: https://local.ycseng.com:${port}/api`,
+    console.info(
+      `${strings.https}  ${strings.ready} on https://local.ycseng.com:${port}`,
     );
   } catch (error) {
     if (error.code === "EADDRINUSE") {
       port = port + 1;
       await app.listen(port);
-      echoMessage(
-        `Server is running on port: https://local.ycseng.com:${port}/api`,
+      console.info(
+        `${strings.https}  ${strings.ready} on http://local.ycseng.com:${port}`,
       );
     } else {
       throw error;
