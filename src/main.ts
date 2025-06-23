@@ -2,22 +2,27 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { PrismaService } from "./prisma/prisma.service";
 import { setupSwagger } from "../utils/swagger";
-import { echoMessage } from "../utils/log";
 import * as fs from "fs";
+import { INestApplication } from "@nestjs/common";
 
 async function bootstrap() {
-  // HTTPS 옵션 설정
-  const httpsOptions = {
-    key: fs.readFileSync("./cert/local.ycseng.com-key.pem"),
-    cert: fs.readFileSync("./cert/local.ycseng.com.pem"),
-  };
-
-  // NestJS 앱을 HTTPS 옵션과 함께 생성
-  const app = await NestFactory.create(AppModule, {
-    httpsOptions,
-  });
-
+  let app: INestApplication;
   let port = 4001;
+
+  // NOTE: 로컬 개발 환경에서 https 통신 목적
+  if (process.env.NODE_ENV === "dev") {
+    // HTTPS 옵션 설정
+    const httpsOptions = {
+      key: fs.readFileSync("./cert/local.ycseng.com-key.pem"),
+      cert: fs.readFileSync("./cert/local.ycseng.com.pem"),
+    };
+    // NestJS 앱을 HTTPS 옵션과 함께 생성
+    app = await NestFactory.create(AppModule, {
+      httpsOptions,
+    });
+  } else {
+    app = await NestFactory.create(AppModule);
+  }
 
   app.enableCors({
     origin: [
@@ -30,7 +35,6 @@ async function bootstrap() {
       "https://ycseng.vercel.app",
       "https://dev-ycseng-admin.vercel.app",
       "https://ycseng-admin.vercel.app",
-      /^https?:\/\/localhost:\d+$/, // 로컬호스트의 모든 포트 허용
     ],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
@@ -47,18 +51,24 @@ async function bootstrap() {
   const prismaService = app.get(PrismaService);
   await prismaService.enableShutdownHooks(app);
 
+  const strings = {
+    ready: "[ \x1b[32mready\x1b[0m ]",
+    http: "\x1b[43mHTTP\x1b[0m",
+    https: "\x1b[44mHTTPS\x1b[0m",
+  };
+
   // 서버 시작 (포트 충돌 시 자동으로 다음 포트 시도)
   try {
     await app.listen(port);
-    echoMessage(
-      `Server is running on port: https://local.ycseng.com:${port}/api`,
+    console.info(
+      `${strings.https}  ${strings.ready} on https://local.ycseng.com:${port}`,
     );
   } catch (error) {
     if (error.code === "EADDRINUSE") {
       port = port + 1;
       await app.listen(port);
-      echoMessage(
-        `Server is running on port: https://local.ycseng.com:${port}/api`,
+      console.info(
+        `${strings.https}  ${strings.ready} on http://local.ycseng.com:${port}`,
       );
     } else {
       throw error;
