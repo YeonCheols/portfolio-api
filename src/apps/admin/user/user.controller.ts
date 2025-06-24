@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Res, Get, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Post,
+  Res,
+  Get,
+  UseGuards,
+  UseFilters,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiOkResponse } from "@nestjs/swagger";
 import { AdminUserService } from "./user.service";
 import {
@@ -10,6 +18,7 @@ import {
 import { Response } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GetUser } from "../auth/get-user.decorator";
+import { AuthExceptionFilter } from "../auth/auth.exception.filter";
 
 @Controller("admin/user")
 export class AdminUserController {
@@ -28,7 +37,7 @@ export class AdminUserController {
   @Post("login")
   async login(
     @Body() loginUserDto: AdminLoginRequest,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ) {
     const { user, accessToken } = await this.userService.login(loginUserDto);
 
@@ -54,6 +63,7 @@ export class AdminUserController {
 
   @ApiBearerAuth("access-token")
   @UseGuards(JwtAuthGuard)
+  @UseFilters(AuthExceptionFilter)
   @Get("auth/check")
   @ApiOkResponse({
     description: "토큰 유효성 검증 및 사용자 정보 조회",
@@ -69,6 +79,7 @@ export class AdminUserController {
 
   @ApiBearerAuth("access-token")
   @UseGuards(JwtAuthGuard)
+  @UseFilters(AuthExceptionFilter)
   @Post("logout")
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie("access_token", {
