@@ -28,7 +28,7 @@ export class AdminUserController {
   @Post("login")
   async login(
     @Body() loginUserDto: AdminLoginRequest,
-    @Res({ passthrough: true }) res: Response,
+    @Res({ passthrough: true }) res: Response
   ) {
     const { user, accessToken } = await this.userService.login(loginUserDto);
 
@@ -37,6 +37,7 @@ export class AdminUserController {
       secure: true,
       sameSite: "none",
       path: "/",
+      domain: ".ycseng.com",
     });
 
     return { user };
@@ -75,6 +76,7 @@ export class AdminUserController {
       secure: true,
       sameSite: "none",
       path: "/",
+      domain: ".ycseng.com",
     });
     return { message: "로그아웃 되었습니다." };
   }
