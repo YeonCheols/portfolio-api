@@ -32,17 +32,15 @@ model Project {
   updatedAt  DateTime @default(now())
   content     String?  @db.Text
   order       Int      @default(autoincrement())
-
-  tags        Tag[]    @relation("ProjectTags")
 }
 
 model Tag {
-  id        String   @id @default(uuid())
+  id        Int      @id @default(autoincrement())
   name      String   @unique
+  icon      String
+  color     String
+  category  String
   updatedAt DateTime @default(now())
-
-  // Relations
-  projects Project[] @relation("ProjectTags")
 }
 
 
