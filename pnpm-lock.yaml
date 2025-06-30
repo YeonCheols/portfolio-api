@@ -53,6 +53,9 @@ importers:
       passport-jwt:
         specifier: ^4.0.1
         version: 4.0.1
+      react-icons:
+        specifier: 4.12.0
+        version: 4.12.0(react@19.1.0)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -3761,8 +3764,17 @@ packages:
     resolution: {integrity: sha512-RmkhL8CAyCRPXCE28MMH0z2PNWQBNk2Q09ZdxM9IOOXwxwZbN+qbWaatPkdkWIKL2ZVDImrN/pK5HTRz2PcS4g==}
     engines: {node: '>= 0.8'}
 
+  react-icons@4.12.0:
+    resolution: {integrity: sha512-IBaDuHiShdZqmfc/TwHu6+d6k2ltNCf3AszxNmjJc1KUfXdEeRJOKyNvLmAHaarhzGmTSVygNdyu8/opXv2gaw==}
+    peerDependencies:
+      react: '*'
+
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+
+  react@19.1.0:
+    resolution: {integrity: sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==}
+    engines: {node: '>=0.10.0'}
 
   readable-stream@2.3.8:
     resolution: {integrity: sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA==}
@@ -8470,7 +8482,13 @@ snapshots:
       iconv-lite: 0.6.3
       unpipe: 1.0.0
 
+  react-icons@4.12.0(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+
   react-is@18.3.1: {}
+
+  react@19.1.0: {}
 
   readable-stream@2.3.8:
     dependencies:
