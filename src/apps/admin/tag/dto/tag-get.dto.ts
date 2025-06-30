@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-enum TagCategoryEnum {
+export enum TagCategoryEnum {
   Frontend = "frontend",
   Backend = "backend",
   Database = "database",
@@ -22,7 +22,11 @@ export class AdminTagResponse {
   @ApiProperty({ description: "색상", example: "#61dafb" })
   color: string;
 
-  @ApiProperty({ description: "카테고리", example: "frontend" })
+  @ApiProperty({
+    description: "카테고리",
+    example: "frontend",
+    enum: TagCategoryEnum,
+  })
   category: TagCategoryEnum;
 
   @ApiProperty({
