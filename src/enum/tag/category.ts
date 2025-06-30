@@ -1,4 +1,4 @@
-export enum TagCategory {
+export enum TagCategoryEnum {
   Frontend = "frontend",
   Backend = "backend",
   Database = "database",
