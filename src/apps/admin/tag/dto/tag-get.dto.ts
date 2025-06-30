@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IconName } from "src/type/icon-type";
+import { TagCategoryEnum } from "src/enum/tag/category";
 
 export class AdminTagResponse {
   @ApiProperty({ description: "태그 ID", example: 1 })
@@ -9,13 +9,13 @@ export class AdminTagResponse {
   name: string;
 
   @ApiProperty({ description: "아이콘", example: "react-icon" })
-  icon: IconName;
+  icon: string;
 
   @ApiProperty({ description: "색상", example: "#61dafb" })
   color: string;
 
   @ApiProperty({ description: "카테고리", example: "frontend" })
-  category: "frontend" | "backend" | "database" | "devops" | "tool" | "other";
+  category: TagCategoryEnum;
 
   @ApiProperty({
     description: "업데이트 일자",
