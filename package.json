@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "type": "commonjs",
   "scripts": {
-    "build": "cross-env NODE_ENV=prd nest build",
+    "build": "cross-env NODE_ENV=prd nest build && tsc-alias",
     "vercel-build": "cross-env NODE_ENV=prd prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "cross-env NODE_ENV=dev nest start",
@@ -35,7 +35,6 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
-    "react-icons": "4.12.0",
     "@prisma/client": "6.7.0",
     "bcryptjs": "^3.0.2",
     "class-validator": "^0.14.2",
@@ -44,6 +43,7 @@
     "i": "^0.3.7",
     "jsonwebtoken": "^9.0.2",
     "passport-jwt": "^4.0.1",
+    "react-icons": "4.12.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "swagger-ui-dist": "^5.21.0",
@@ -76,6 +76,7 @@
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
