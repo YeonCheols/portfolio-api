@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { TagCategoryEnum } from "../enum/category";
+import { TagCategoryEnum } from "src/enum/category";
 
 export class AdminTagResponse {
   @ApiProperty({ description: "태그 ID", example: 1 })

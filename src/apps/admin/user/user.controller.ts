@@ -47,6 +47,7 @@ export class AdminUserController {
       sameSite: "none",
       path: "/",
       domain: ".ycseng.com",
+      maxAge: 60 * 60 * 24,
     });
 
     return { user };
