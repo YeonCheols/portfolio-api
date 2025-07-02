@@ -6,6 +6,7 @@ import {
   Param,
   Put,
   Delete,
+  Query,
 } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { AdminTagService } from "./tag.service";
@@ -28,6 +29,13 @@ export class AdminTagController extends AdminAuthController {
   @Get()
   findAll() {
     return this.adminTagService.findAll();
+  }
+
+  @ApiOperation({ summary: "태그 검색" })
+  @ApiOkResponse({ type: [AdminTagResponse] })
+  @Get("search")
+  findSearch(@Query("keyword") keyword: string) {
+    return this.adminTagService.findSearch(keyword);
   }
 
   @ApiOperation({ summary: "태그 생성" })

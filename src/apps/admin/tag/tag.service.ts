@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AdminTagCreateRequest, AdminTagUpdateRequest } from "./dto";
 
@@ -12,6 +16,18 @@ export class AdminTagService {
 
   async findAll() {
     return this.prisma.tag.findMany({ orderBy: { updatedAt: "desc" } });
+  }
+
+  async findSearch(keyword: string) {
+    if (!keyword) {
+      throw new BadRequestException("Keyword is required");
+    }
+    return this.prisma.tag.findMany({
+      where: {
+        name: { contains: keyword, mode: "insensitive" },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
   }
 
   async findOne(name: string) {
