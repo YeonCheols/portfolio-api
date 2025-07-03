@@ -2,7 +2,7 @@
   "version": 2,
   "buildCommand": "pnpm build:vercel",
   "installCommand": "pnpm install",
-  "outputDirectory": "src",
+  "outputDirectory": "dist",
   "routes": [
     {
       "src": "/(.*)",
