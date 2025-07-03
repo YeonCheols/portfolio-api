@@ -2,11 +2,16 @@
   "version": 2,
   "buildCommand": "pnpm build:vercel",
   "installCommand": "pnpm install",
-  "outputDirectory": "dist",
+  "builds": [
+    {
+      "src": "dist/main.js",
+      "use": "@vercel/node"
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "src/main.js",
+      "dest": "dist/main.js",
       "methods": ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",
