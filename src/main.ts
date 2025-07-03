@@ -10,7 +10,10 @@ async function bootstrap() {
   let port = 4001;
 
   // NOTE: 로컬 개발 환경에서 https 통신 목적
-  if (process.env.NODE_ENV === "dev") {
+  if (
+    fs.existsSync("./cert/local.ycseng.com-key.pem") &&
+    fs.existsSync("./cert/local.ycseng.com.pem")
+  ) {
     // HTTPS 옵션 설정
     const httpsOptions = {
       key: fs.readFileSync("./cert/local.ycseng.com-key.pem"),
