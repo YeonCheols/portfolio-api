@@ -1,7 +1,11 @@
-import { Controller, Get, Param } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { ProjectService } from "./project.service";
-import { ProjectResponse } from "./dto/get-project.dto";
+import { ProjectResponse } from "./dto/project-get.dto";
+import {
+  ProjectSearchRequest,
+  ProjectSearchResponse,
+} from "./dto/project-search.dto";
 
 @Controller("project")
 export class ProjectController {
@@ -16,6 +20,17 @@ export class ProjectController {
   @Get()
   async findAll() {
     return this.projectService.findAll();
+  }
+
+  @ApiOperation({ summary: "프로젝트 검색" })
+  @ApiOkResponse({
+    description: "프로젝트 검색 성공",
+    type: ProjectSearchResponse,
+    isArray: true,
+  })
+  @Get("search")
+  findSearch(@Query() query: ProjectSearchRequest) {
+    return this.projectService.finedSearch(query);
   }
 
   @ApiOperation({ summary: "발행한 특정 프로젝트 조회" })

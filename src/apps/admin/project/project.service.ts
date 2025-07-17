@@ -1,11 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 import {
   AdminProjectCreateRequest,
   AdminProjectUpdateRequest,
   AdminProjectStatusUpdateRequest,
   AdminProjectOrderUpdateRequest,
 } from "./dto";
+import {
+  AdminProjectSearchRequest,
+  AdminProjectSearchResponse,
+} from "./dto/project-search.dto";
 
 @Injectable()
 export class AdminProjectService {
@@ -85,6 +90,44 @@ export class AdminProjectService {
       status: 200,
       message: "프로젝트 순서 업데이트 success",
     };
+  }
+
+  // 프로젝트 검색
+  async finedSearch(params: AdminProjectSearchRequest) {
+    const { keyword } = params;
+    const page = Number(params.page) || 1;
+    const size = Number(params.size) || 10;
+
+    const where = keyword
+      ? {
+          OR: [
+            {
+              title: { contains: keyword, mode: Prisma.QueryMode.insensitive },
+            },
+            {
+              description: {
+                contains: keyword,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          ],
+        }
+      : {};
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.project.findMany({
+        where,
+        skip: (page - 1) * size,
+        take: size,
+        orderBy: [{ order: "desc" }, { updatedAt: "desc" }],
+      }),
+      this.prisma.project.count({ where }),
+    ]);
+    return {
+      data,
+      total,
+      page,
+      size,
+    } as AdminProjectSearchResponse;
   }
 
   async remove(slug: string) {
