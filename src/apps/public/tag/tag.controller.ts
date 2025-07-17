@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { TagService } from "./tag.service";
-import { TagResponse } from "./dto";
+import { TagResponse, TagSearchRequest, TagSearchResponse } from "./dto";
 
 @Controller("tag")
 export class TagController {
@@ -15,9 +15,9 @@ export class TagController {
   }
 
   @ApiOperation({ summary: "태그 검색" })
-  @ApiOkResponse({ type: [TagResponse] })
+  @ApiOkResponse({ type: TagSearchResponse })
   @Get("search")
-  findSearch(@Query("keyword") keyword: string) {
-    return this.tagService.findSearch(keyword);
+  findSearch(@Query() query: TagSearchRequest) {
+    return this.tagService.findSearch(query);
   }
 }

@@ -1,10 +1,12 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
-import { AdminTagCreateRequest, AdminTagUpdateRequest } from "./dto";
+import {
+  AdminTagCreateRequest,
+  AdminTagUpdateRequest,
+  AdminTagSearchRequest,
+  AdminTagSearchResponse,
+} from "./dto";
 
 @Injectable()
 export class AdminTagService {
@@ -18,16 +20,35 @@ export class AdminTagService {
     return this.prisma.tag.findMany({ orderBy: { updatedAt: "desc" } });
   }
 
-  async findSearch(keyword: string) {
-    if (!keyword) {
-      throw new BadRequestException("Keyword is required");
-    }
-    return this.prisma.tag.findMany({
-      where: {
-        name: { contains: keyword, mode: "insensitive" },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
+  async findSearch(params: AdminTagSearchRequest) {
+    const { keyword } = params;
+    const page = Number(params.page) || 1;
+    const size = Number(params.size) || 10;
+
+    const where = keyword
+      ? {
+          name: { contains: keyword, mode: Prisma.QueryMode.insensitive },
+        }
+      : {};
+
+    const [data, , allTotal] = await this.prisma.$transaction([
+      this.prisma.tag.findMany({
+        where,
+        skip: (page - 1) * size,
+        take: size,
+        orderBy: { updatedAt: "desc" },
+      }),
+      this.prisma.tag.count({ where }),
+      this.prisma.tag.count({}),
+    ]);
+
+    return {
+      data,
+      total: data.length,
+      allTotal,
+      page,
+      size,
+    } as AdminTagSearchResponse;
   }
 
   async findOne(name: string) {
