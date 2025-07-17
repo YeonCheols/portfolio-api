@@ -113,7 +113,7 @@ export class AdminProjectService {
           ],
         }
       : {};
-    const [data, total] = await this.prisma.$transaction([
+    const [data, total, allTotal] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         skip: (page - 1) * size,
@@ -121,10 +121,12 @@ export class AdminProjectService {
         orderBy: [{ order: "desc" }, { updatedAt: "desc" }],
       }),
       this.prisma.project.count({ where }),
+      this.prisma.project.count({}),
     ]);
     return {
       data,
       total,
+      allTotal,
       page,
       size,
     } as AdminProjectSearchResponse;

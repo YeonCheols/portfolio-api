@@ -2,9 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import {
-  AdminProjectSearchRequest,
-  AdminProjectSearchResponse,
-} from "src/apps/admin/project/dto/project-search.dto";
+  ProjectSearchRequest,
+  ProjectSearchResponse,
+} from "./dto/project-search.dto";
 @Injectable()
 export class ProjectService {
   constructor(private prisma: PrismaService) {}
@@ -28,7 +28,7 @@ export class ProjectService {
   }
 
   // 프로젝트 검색
-  async finedSearch(params: AdminProjectSearchRequest) {
+  async finedSearch(params: ProjectSearchRequest) {
     const { keyword } = params;
     const page = Number(params.page) || 1;
     const size = Number(params.size) || 10;
@@ -48,7 +48,7 @@ export class ProjectService {
           ],
         }
       : {};
-    const [data, total] = await this.prisma.$transaction([
+    const [data, total, allTotal] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         skip: (page - 1) * size,
@@ -56,13 +56,15 @@ export class ProjectService {
         orderBy: [{ order: "desc" }, { updatedAt: "desc" }],
       }),
       this.prisma.project.count({ where }),
+      this.prisma.project.count({}),
     ]);
     return {
       data,
       total,
+      allTotal,
       page,
       size,
-    } as AdminProjectSearchResponse;
+    } as ProjectSearchResponse;
   }
 
   async findOne(slug: string) {

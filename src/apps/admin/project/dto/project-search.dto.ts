@@ -26,6 +26,8 @@ export class AdminProjectSearchResponse {
   data: AdminProjectResponse[];
   @ApiProperty({ description: "프로젝트 총 개수" })
   total: number;
+  @ApiProperty({ description: "전체 프로젝트 개수" })
+  allTotal: number;
   @ApiProperty({ description: "현재 페이지" })
   page: number;
   @ApiProperty({ description: "페이지 당 프로젝트 수" })
