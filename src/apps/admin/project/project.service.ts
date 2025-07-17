@@ -113,7 +113,7 @@ export class AdminProjectService {
           ],
         }
       : {};
-    const [data, total, allTotal] = await this.prisma.$transaction([
+    const [data, , allTotal] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         skip: (page - 1) * size,
@@ -125,7 +125,7 @@ export class AdminProjectService {
     ]);
     return {
       data,
-      total,
+      total: data.length,
       allTotal,
       page,
       size,
