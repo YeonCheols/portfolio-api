@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -6,6 +7,7 @@ import {
   Body,
   Param,
   Patch,
+  Query,
 } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { AdminProjectService } from "./project.service";
@@ -17,6 +19,10 @@ import {
   AdminProjectOrderUpdateRequest,
 } from "./dto";
 import { AdminAuthController } from "../auth/auth.controller";
+import {
+  AdminProjectSearchRequest,
+  AdminProjectSearchResponse,
+} from "./dto/project-search.dto";
 
 @Controller("admin/project")
 export class AdminProjectController extends AdminAuthController {
@@ -30,7 +36,7 @@ export class AdminProjectController extends AdminAuthController {
     return this.adminProjectService.create(createProjectDto);
   }
 
-  @ApiOperation({ summary: "모든 프로젝트 조회" })
+  @ApiOperation({ summary: "프로젝트 조회" })
   @ApiOkResponse({
     description: "프로젝트 조회 성공",
     type: AdminProjectResponse,
@@ -39,6 +45,17 @@ export class AdminProjectController extends AdminAuthController {
   @Get()
   findAll() {
     return this.adminProjectService.findAll();
+  }
+
+  @ApiOperation({ summary: "프로젝트 검색" })
+  @ApiOkResponse({
+    description: "프로젝트 검색 성공",
+    type: AdminProjectSearchResponse,
+    isArray: true,
+  })
+  @Get("search")
+  findSearch(@Query() query: AdminProjectSearchRequest) {
+    return this.adminProjectService.finedSearch(query);
   }
 
   @ApiOperation({ summary: "특정 프로젝트 조회" })
@@ -71,7 +88,7 @@ export class AdminProjectController extends AdminAuthController {
   @Patch(":slug")
   update(
     @Param("slug") slug: string,
-    @Body() updateProjectDto: AdminProjectUpdateRequest,
+    @Body() updateProjectDto: AdminProjectUpdateRequest
   ) {
     return this.adminProjectService.update(slug, updateProjectDto);
   }
@@ -80,7 +97,7 @@ export class AdminProjectController extends AdminAuthController {
   @Patch(":slug/show")
   updateShow(
     @Param("slug") slug: string,
-    @Body() statusUpdateDto: AdminProjectStatusUpdateRequest,
+    @Body() statusUpdateDto: AdminProjectStatusUpdateRequest
   ) {
     return this.adminProjectService.updateShow(statusUpdateDto);
   }
