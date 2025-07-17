@@ -479,3 +479,29 @@ export interface AdminTagUpdateRequest {
    */
   category?: "frontend" | "backend" | "database" | "devops" | "tool" | "other";
 }
+
+export interface TagSearchResponse {
+  /** 태그 목록 */
+  data: TagResponse[];
+  /** 현재 페이지 태그 수 */
+  total: number;
+  /** 전체 태그 수 */
+  allTotal: number;
+  /** 현재 페이지 */
+  page: number;
+  /** 페이지 크기 */
+  size: number;
+}
+
+export interface AdminTagSearchResponse {
+  /** 태그 목록 */
+  data: AdminTagResponse[];
+  /** 현재 페이지 태그 수 */
+  total: number;
+  /** 전체 태그 수 */
+  allTotal: number;
+  /** 현재 페이지 */
+  page: number;
+  /** 페이지 크기 */
+  size: number;
+}

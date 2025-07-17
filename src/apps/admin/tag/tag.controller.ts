@@ -14,6 +14,8 @@ import {
   AdminTagCreateRequest,
   AdminTagUpdateRequest,
   AdminTagResponse,
+  AdminTagSearchRequest,
+  AdminTagSearchResponse,
 } from "./dto";
 import { AdminAuthController } from "../auth/auth.controller";
 
@@ -32,10 +34,10 @@ export class AdminTagController extends AdminAuthController {
   }
 
   @ApiOperation({ summary: "태그 검색" })
-  @ApiOkResponse({ type: [AdminTagResponse] })
+  @ApiOkResponse({ type: AdminTagSearchResponse })
   @Get("search")
-  findSearch(@Query("keyword") keyword: string) {
-    return this.adminTagService.findSearch(keyword);
+  findSearch(@Query() query: AdminTagSearchRequest) {
+    return this.adminTagService.findSearch(query);
   }
 
   @ApiOperation({ summary: "태그 생성" })
