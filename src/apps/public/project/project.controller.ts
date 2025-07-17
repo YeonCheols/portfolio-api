@@ -26,7 +26,6 @@ export class ProjectController {
   @ApiOkResponse({
     description: "프로젝트 검색 성공",
     type: ProjectSearchResponse,
-    isArray: true,
   })
   @Get("search")
   findSearch(@Query() query: ProjectSearchRequest) {
