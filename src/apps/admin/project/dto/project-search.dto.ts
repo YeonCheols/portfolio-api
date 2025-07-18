@@ -22,7 +22,11 @@ export class AdminProjectSearchRequest {
 }
 
 export class AdminProjectSearchResponse {
-  @ApiProperty({ description: "프로젝트 목록" })
+  @ApiProperty({
+    description: "프로젝트 목록",
+    type: AdminProjectResponse,
+    isArray: true,
+  })
   data: AdminProjectResponse[];
   @ApiProperty({ description: "프로젝트 총 개수" })
   total: number;

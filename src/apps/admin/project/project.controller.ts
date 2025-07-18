@@ -51,7 +51,6 @@ export class AdminProjectController extends AdminAuthController {
   @ApiOkResponse({
     description: "프로젝트 검색 성공",
     type: AdminProjectSearchResponse,
-    isArray: true,
   })
   @Get("search")
   findSearch(@Query() query: AdminProjectSearchRequest) {
