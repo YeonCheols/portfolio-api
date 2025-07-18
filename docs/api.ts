@@ -44,6 +44,8 @@ export interface ProjectSearchResponse {
   data: ProjectResponse[];
   /** 프로젝트 총 개수 */
   total: number;
+  /** 전체 프로젝트 개수 */
+  allTotal: number;
   /** 현재 페이지 */
   page: number;
   /** 페이지 당 프로젝트 수 */
@@ -113,6 +115,31 @@ export interface TagResponse {
    * @example "2025-06-30T00:00:00.000Z"
    */
   updatedAt: string;
+}
+
+export interface TagSearchResponse {
+  /** 태그 목록 */
+  data: TagResponse[];
+  /**
+   * 현재 페이지 태그 수
+   * @example 10
+   */
+  total: number;
+  /**
+   * 전체 태그 수
+   * @example 100
+   */
+  allTotal: number;
+  /**
+   * 현재 페이지
+   * @example 1
+   */
+  page: number;
+  /**
+   * 페이지 크기
+   * @example 10
+   */
+  size: number;
 }
 
 export interface AdminProfileCreateRequest {
@@ -287,6 +314,8 @@ export interface AdminProjectSearchResponse {
   data: AdminProjectResponse[];
   /** 프로젝트 총 개수 */
   total: number;
+  /** 전체 프로젝트 개수 */
+  allTotal: number;
   /** 현재 페이지 */
   page: number;
   /** 페이지 당 프로젝트 수 */
@@ -434,6 +463,31 @@ export interface AdminTagResponse {
   updatedAt: string;
 }
 
+export interface AdminTagSearchResponse {
+  /** 태그 목록 */
+  data: AdminTagResponse[];
+  /**
+   * 현재 페이지 태그 수
+   * @example 10
+   */
+  total: number;
+  /**
+   * 전체 태그 수
+   * @example 100
+   */
+  allTotal: number;
+  /**
+   * 현재 페이지
+   * @example 1
+   */
+  page: number;
+  /**
+   * 페이지 크기
+   * @example 10
+   */
+  size: number;
+}
+
 export interface AdminTagCreateRequest {
   /**
    * 태그 이름
@@ -478,30 +532,4 @@ export interface AdminTagUpdateRequest {
    * @example "frontend"
    */
   category?: "frontend" | "backend" | "database" | "devops" | "tool" | "other";
-}
-
-export interface TagSearchResponse {
-  /** 태그 목록 */
-  data: TagResponse[];
-  /** 현재 페이지 태그 수 */
-  total: number;
-  /** 전체 태그 수 */
-  allTotal: number;
-  /** 현재 페이지 */
-  page: number;
-  /** 페이지 크기 */
-  size: number;
-}
-
-export interface AdminTagSearchResponse {
-  /** 태그 목록 */
-  data: AdminTagResponse[];
-  /** 현재 페이지 태그 수 */
-  total: number;
-  /** 전체 태그 수 */
-  allTotal: number;
-  /** 현재 페이지 */
-  page: number;
-  /** 페이지 크기 */
-  size: number;
 }
