@@ -73,4 +73,97 @@ export class ProjectService {
     });
     return project;
   }
+
+  // stacks를 기반으로 Tags를 검색하는 메서드
+  async findTagsByStacks(stacks: string): Promise<any[]> {
+    try {
+      // stacks 문자열을 JSON 배열로 파싱
+      const stackArray = JSON.parse(stacks) as string[];
+
+      // 해당하는 태그들을 찾기
+      const tags = await this.prisma.tag.findMany({
+        where: {
+          name: {
+            in: stackArray,
+          },
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+      return tags;
+    } catch {
+      // 에러 발생 시 빈 배열 반환
+      return [];
+    }
+  }
+
+  // 특정 태그를 사용하는 프로젝트들을 찾는 메서드
+  async findProjectsByTag(tagName: string) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        isShow: true,
+        projectTags: {
+          some: {
+            tag: {
+              name: tagName,
+            },
+          },
+        },
+      },
+      include: {
+        projectTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          order: "desc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+    });
+
+    return projects;
+  }
+
+  // 여러 태그를 사용하는 프로젝트들을 찾는 메서드
+  async findProjectsByTags(tagNames: string[]) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        isShow: true,
+        projectTags: {
+          some: {
+            tag: {
+              name: {
+                in: tagNames,
+              },
+            },
+          },
+        },
+      },
+      include: {
+        projectTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          order: "desc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+    });
+
+    return projects;
+  }
 }

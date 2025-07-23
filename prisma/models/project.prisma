@@ -11,4 +11,7 @@ model Project {
   updatedAt  DateTime @default(now())
   content     String?  @db.Text
   order       Int      @default(autoincrement())
+  
+  // ProjectTag와의 관계
+  projectTags ProjectTag[]
 }

@@ -41,4 +41,64 @@ export class TagService {
       size,
     } as TagSearchResponse;
   }
+
+  // 특정 태그를 사용하는 프로젝트들을 찾는 메서드
+  async findProjectsByTag(tagName: string) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        isShow: true,
+        projectTags: {
+          some: {
+            tag: {
+              name: tagName,
+            },
+          },
+        },
+      },
+      include: {
+        projectTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          order: "desc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+    });
+
+    return projects;
+  }
+
+  // 태그별 프로젝트 개수 통계
+  async getTagProjectCounts() {
+    const tagCounts = await this.prisma.tag.findMany({
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        color: true,
+        category: true,
+        _count: {
+          select: {
+            projectTags: true,
+          },
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+
+    return tagCounts.map((tag) => ({
+      ...tag,
+      projectCount: tag._count.projectTags,
+      _count: undefined,
+    }));
+  }
 }
