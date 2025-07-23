@@ -1,10 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
-import {
-  ProjectSearchRequest,
-  ProjectSearchResponse,
-} from "./dto/project-search.dto";
+import { ProjectSearchRequest, ProjectSearchResponse } from "./dto";
 @Injectable()
 export class ProjectService {
   constructor(private prisma: PrismaService) {}

@@ -1,11 +1,11 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { ProjectService } from "./project.service";
-import { ProjectResponse } from "./dto/project-get.dto";
 import {
+  ProjectResponse,
   ProjectSearchRequest,
   ProjectSearchResponse,
-} from "./dto/project-search.dto";
+} from "./dto";
 
 @Controller("project")
 export class ProjectController {

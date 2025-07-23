@@ -4,16 +4,35 @@ import { ApiProperty } from "@nestjs/swagger";
 import { AdminTagResponse } from "./tag-get.dto";
 
 export class AdminTagSearchRequest {
+  @ApiProperty({
+    description: "검색 키워드",
+    required: false,
+    example: "React",
+  })
   @IsOptional()
   @IsString()
   keyword?: string;
 
+  @ApiProperty({
+    description: "페이지 번호",
+    required: false,
+    minimum: 1,
+    default: 1,
+    example: 1,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
+  @ApiProperty({
+    description: "페이지당 항목 수",
+    required: false,
+    minimum: 1,
+    default: 10,
+    example: 10,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
