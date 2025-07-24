@@ -5,4 +5,7 @@ model Tag {
   color     String
   category  String
   updatedAt DateTime @default(now())
+  
+  // ProjectTag와의 관계
+  projectTags ProjectTag[]
 }
