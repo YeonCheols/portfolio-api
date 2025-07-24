@@ -22,6 +22,12 @@ export class TagResponse {
   category: TagCategoryEnum;
 
   @ApiProperty({
+    description: "연결된 프로젝트 개수",
+    example: 5,
+  })
+  projectCount: number;
+
+  @ApiProperty({
     description: "업데이트 일자",
     example: "2025-06-30T00:00:00.000Z",
   })
