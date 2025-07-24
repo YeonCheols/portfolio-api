@@ -29,6 +29,10 @@ export class ProjectResponse {
 }
 
 export class ProjectByTagResponse extends ProjectResponse {
-  @ApiProperty({ description: "프로젝트 태그" })
+  @ApiProperty({
+    description: "프로젝트 태그",
+    type: [ProjectTagResponse],
+    isArray: true,
+  })
   projectTags: ProjectTagResponse[];
 }
