@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ProjectSearchRequest, ProjectSearchResponse } from "./dto";
+import { TagCategoryEnum } from "src/enum/category";
 @Injectable()
 export class ProjectService {
   constructor(private prisma: PrismaService) {}
@@ -129,7 +130,17 @@ export class ProjectService {
       ],
     });
 
-    return projects;
+    return projects.map((project) => ({
+      ...project,
+      projectTags: (project.projectTags || []).map((pt) => ({
+        id: pt.tag.id,
+        name: pt.tag.name,
+        icon: pt.tag.icon,
+        color: pt.tag.color,
+        category: pt.tag.category as TagCategoryEnum,
+        updatedAt: pt.tag.updatedAt,
+      })),
+    }));
   }
 
   // 여러 태그를 사용하는 프로젝트들을 찾는 메서드
@@ -164,6 +175,16 @@ export class ProjectService {
       ],
     });
 
-    return projects;
+    return projects.map((project) => ({
+      ...project,
+      projectTags: (project.projectTags || []).map((pt) => ({
+        id: pt.tag.id,
+        name: pt.tag.name,
+        icon: pt.tag.icon,
+        color: pt.tag.color,
+        category: pt.tag.category as TagCategoryEnum,
+        updatedAt: pt.tag.updatedAt,
+      })),
+    }));
   }
 }
