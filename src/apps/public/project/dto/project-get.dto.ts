@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { ProjectTagResponse } from "./project-tag.dto";
 
 export class ProjectResponse {
   @ApiProperty({ description: "프로젝트 ID" })
@@ -25,4 +26,9 @@ export class ProjectResponse {
   order: number;
   @ApiProperty({ description: "프로젝트 업데이트 일자" })
   updatedAt: Date;
+}
+
+export class ProjectByTagResponse extends ProjectResponse {
+  @ApiProperty({ description: "프로젝트 태그" })
+  projectTags: ProjectTagResponse[];
 }

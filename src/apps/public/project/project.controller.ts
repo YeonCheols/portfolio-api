@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ApiOperation, ApiOkResponse } from "@nestjs/swagger";
 import { ProjectService } from "./project.service";
 import {
+  ProjectByTagResponse,
   ProjectResponse,
   ProjectSearchRequest,
   ProjectSearchResponse,
@@ -47,7 +48,7 @@ export class ProjectController {
   @ApiOperation({ summary: "특정 태그를 사용하는 프로젝트들 조회" })
   @ApiOkResponse({
     description: "프로젝트 조회 성공",
-    type: ProjectResponse,
+    type: ProjectByTagResponse,
     isArray: true,
   })
   @Get("by-tag/:tagName")
@@ -58,7 +59,7 @@ export class ProjectController {
   @ApiOperation({ summary: "여러 태그를 사용하는 프로젝트들 조회" })
   @ApiOkResponse({
     description: "프로젝트 조회 성공",
-    type: ProjectResponse,
+    type: ProjectByTagResponse,
     isArray: true,
   })
   @Get("by-tags")
