@@ -52,6 +52,18 @@ pnpm prisma migrate dev
 pnpm run build
 ```
 
+### 환경 변수 (메일 발송)
+
+다음 환경 변수를 설정해 메일 발송 기능을 사용합니다.
+
+```
+RESEND_API_KEY=your_resend_api_key
+MAIL_FROM=Your Name <onboarding@resend.dev>
+MAIL_TO=s9292909@gmail.com
+```
+
+Swagger에서 `POST /public/mail/send` 엔드포인트를 호출할 수 있습니다.
+
 ### 서버 실행
 
 #### 기본 HTTP 서버
