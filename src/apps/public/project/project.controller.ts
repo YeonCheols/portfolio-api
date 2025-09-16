@@ -53,7 +53,6 @@ export class ProjectController {
   })
   @Get("by-tag/:tagName")
   async findProjectsByTag(@Param("tagName") tagName: string) {
-    console.info("tagName controller : ", tagName);
     return this.projectService.findProjectsByTag(tagName);
   }
 

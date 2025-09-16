@@ -25,7 +25,7 @@ export class MailService {
       });
       const providerError = (result as any)?.error;
       if (providerError) {
-        const message =
+        const message: string =
           typeof providerError?.message === "string"
             ? providerError.message
             : typeof providerError === "string"

@@ -29,7 +29,13 @@ export class TagService {
         updatedAt: true,
         _count: {
           select: {
-            projectTags: true,
+            projectTags: {
+              where: {
+                project: {
+                  isShow: true,
+                },
+              },
+            },
           },
         },
       },
@@ -80,7 +86,13 @@ export class TagService {
           updatedAt: true,
           _count: {
             select: {
-              projectTags: true,
+              projectTags: {
+                where: {
+                  project: {
+                    isShow: true,
+                  },
+                },
+              },
             },
           },
         },
@@ -121,6 +133,15 @@ export class TagService {
         _count: {
           select: {
             projectTags: true,
+          },
+        },
+      },
+      where: {
+        projectTags: {
+          some: {
+            project: {
+              isShow: true,
+            },
           },
         },
       },
