@@ -33,6 +33,7 @@ export class ProjectService {
 
     const where = keyword
       ? {
+          isShow: true,
           OR: [
             {
               title: { contains: keyword, mode: Prisma.QueryMode.insensitive },
@@ -45,7 +46,9 @@ export class ProjectService {
             },
           ],
         }
-      : {};
+      : {
+          isShow: true,
+        };
     const [data, , allTotal] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
