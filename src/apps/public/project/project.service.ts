@@ -49,15 +49,14 @@ export class ProjectService {
       : {
           isShow: true,
         };
-    const [data, , allTotal] = await this.prisma.$transaction([
+    const [data, allTotal] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         skip: (page - 1) * size,
         take: size,
         orderBy: [{ order: "desc" }, { updatedAt: "desc" }],
       }),
-      this.prisma.project.count({ where }),
-      this.prisma.project.count({}),
+      this.prisma.project.count({ where: { isShow: true } }),
     ]);
     return {
       data,
