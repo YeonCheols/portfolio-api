@@ -4,6 +4,7 @@
 import {
   INestApplication,
   Injectable,
+  Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from "@nestjs/common";
@@ -14,6 +15,8 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  private readonly logger = new Logger(PrismaService.name);
+
   constructor() {
     super({
       datasources: {
@@ -23,8 +26,15 @@ export class PrismaService
       },
     });
   }
+  // DB 장애 시에도 앱이 떠야 /health/db가 503으로 상태를 알릴 수 있다 (연결은 첫 쿼리 때 재시도됨)
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+    } catch (error) {
+      this.logger.error(
+        `DB 연결 실패 (첫 쿼리 시 재시도): ${(error as Error).message}`,
+      );
+    }
   }
 
   async onModuleDestroy() {
