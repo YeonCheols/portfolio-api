@@ -1,6 +1,11 @@
+// 런타임의 @prisma/client는 기본 위치(pnpm 패키지 옆 .prisma/client)를 읽는다
 generator client {
   provider = "prisma-client-js"
-  // 루트 node_modules에 생성해 심볼릭 링크를 따라가지 않는 환경에서도 해석되게 한다
+}
+
+// @vercel/node 타입 검사는 심볼릭 링크를 따라가지 않으므로 루트 node_modules에도 생성한다
+generator clientTypes {
+  provider = "prisma-client-js"
   output   = "../node_modules/.prisma/client"
 }
 
