@@ -74,7 +74,7 @@ export class TagService {
         }
       : {};
 
-    const [data, , allTotal] = await this.prisma.$transaction([
+    const [data, filteredTotal, allTotal] = await this.prisma.$transaction([
       this.prisma.tag.findMany({
         where,
         select: {
@@ -115,6 +115,7 @@ export class TagService {
         projectCount: tag._count.projectTags,
       })),
       total: data.length,
+      filteredTotal,
       allTotal,
       page,
       size,

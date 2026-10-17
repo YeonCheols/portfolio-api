@@ -31,7 +31,7 @@ export class AdminTagService {
         }
       : {};
 
-    const [data, , allTotal] = await this.prisma.$transaction([
+    const [data, filteredTotal, allTotal] = await this.prisma.$transaction([
       this.prisma.tag.findMany({
         where,
         skip: (page - 1) * size,
@@ -45,6 +45,7 @@ export class AdminTagService {
     return {
       data,
       total: data.length,
+      filteredTotal,
       allTotal,
       page,
       size,
