@@ -1,6 +1,6 @@
 # AGENTS.md
 
-이 파일은 `portfolio-api` 저장소에서 작업하는 AI 에이전트를 위한 지침입니다.
+이 파일은 `portfolio-api` 저장소에서 작업하는 AI 에이전트를 위한 지침의 **원본**입니다. 어떤 에이전트든 작업을 시작하기 전에 이 파일 전체를 읽고, 아래 [필수 규칙](#필수-규칙)의 스킬을 따릅니다.
 
 ## 프로젝트 개요
 
@@ -28,6 +28,7 @@ prisma/                     # 분할 스키마 + merge-schema.js + migrations
 test/                       # e2e 테스트 (*.e2e-spec.ts)
 .agents/skills/             # 공통 에이전트 스킬 (원본)
 .cursor/skills/             # Cursor용 심볼릭 링크 → .agents/skills/*
+.claude/skills/             # Claude Code용 심볼릭 링크 → .agents/skills/*
 ```
 
 ## 주요 명령어
@@ -99,6 +100,22 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 ```bash
 mkdir -p .agents/skills/<kebab-case-name>   # SKILL.md 작성
 ln -s ../../.agents/skills/<kebab-case-name> .cursor/skills/<kebab-case-name>
+ln -s ../../.agents/skills/<kebab-case-name> .claude/skills/<kebab-case-name>
 ```
 
 그다음 위 표에 등록합니다. 스킬 수정은 항상 `.agents/skills/` 원본에서 합니다.
+
+## 에이전트별 진입점
+
+에이전트마다 자동으로 읽는 파일이 달라서, 각 도구가 이 파일(`AGENTS.md`)로 오도록 진입점 파일을 둡니다. 진입점 파일에는 내용을 늘리지 않고, 지침은 항상 이 파일에서 수정합니다.
+
+| 에이전트 | 자동으로 읽는 파일 | 스킬 위치 |
+|----------|-------------------|-----------|
+| Cursor | `AGENTS.md`, `.cursor/rules/agents.mdc` (항상 적용) | `.cursor/skills/` |
+| Codex | `AGENTS.md` | `.agents/skills/` |
+| Claude Code | `CLAUDE.md` (`@AGENTS.md` 포함) | `.claude/skills/` |
+| Gemini CLI | `GEMINI.md` (`@AGENTS.md` 포함) | `.agents/skills/` |
+| GitHub Copilot | `.github/copilot-instructions.md` | `.agents/skills/` |
+
+- 필수 규칙(스킬 목록, 필수 사용 시점)을 바꾸면 요약이 들어 있는 `.cursor/rules/agents.mdc`와 `.github/copilot-instructions.md`도 함께 갱신한다
+- 새 에이전트를 지원하려면 그 도구가 읽는 파일을 만들어 이 파일을 가리키게 하고 위 표에 추가한다
