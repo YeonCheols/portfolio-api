@@ -35,6 +35,7 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 |------|--------|
 | 개발 서버 | `pnpm start:dev` |
 | 빌드 | `pnpm build` |
+| 타입 검사 (Vercel 동일 조건) | `pnpm typecheck:vercel` |
 | 린트 (자동 수정) | `pnpm lint` |
 | 포맷 | `pnpm format` |
 | 단위 테스트 | `pnpm test` / `pnpm test -- <경로>` |
