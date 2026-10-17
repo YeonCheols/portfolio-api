@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "type": "commonjs",
   "scripts": {
-    "build": "cross-env NODE_ENV=prd nest build && tsc-alias",
+    "build": "pnpm run prisma:generate && cross-env NODE_ENV=prd nest build && tsc-alias",
     "build:vercel": "echo 'portfolio-api building...' && cross-env NODE_ENV=prd prisma generate && nest build && tsc-alias",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "cross-env NODE_ENV=dev nest start",
