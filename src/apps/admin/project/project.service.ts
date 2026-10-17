@@ -1,4 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { Prisma, Tag } from "@prisma/client";
 import {
@@ -16,135 +20,97 @@ import {
 export class AdminProjectService {
   constructor(private prisma: PrismaService) {}
 
-  // NOTE: stacks를 기반으로 태그를 생성하거나 찾고 ProjectTag 관계를 설정하는 메서드
-  private async createOrUpdateProjectTags(projectId: number, stacks: string) {
+  private parseStacks(stacks: string): string[] {
+    let parsed: unknown;
     try {
-      // stacks JSON 파싱
-      const stackArray = JSON.parse(stacks) as string[];
+      parsed = JSON.parse(stacks);
+    } catch {
+      throw new BadRequestException("stacks는 JSON 문자열 배열이어야 합니다");
+    }
+    if (
+      !Array.isArray(parsed) ||
+      !parsed.every((item) => typeof item === "string")
+    ) {
+      throw new BadRequestException("stacks는 JSON 문자열 배열이어야 합니다");
+    }
+    return parsed;
+  }
 
-      for (const stackName of stackArray) {
-        // 태그가 존재하는지 확인
-        let tag = await this.prisma.tag.findUnique({
-          where: { name: stackName },
-        });
+  private async findOrCreateTag(tx: Prisma.TransactionClient, name: string) {
+    const tag = await tx.tag.findUnique({ where: { name } });
+    if (tag) return tag;
+    return tx.tag.create({
+      data: {
+        name,
+        icon: "default-icon",
+        color: "#000000",
+        category: "technology",
+      },
+    });
+  }
 
-        // 태그가 없으면 생성
-        if (!tag) {
-          tag = await this.prisma.tag.create({
-            data: {
-              name: stackName,
-              icon: "default-icon", // 기본값
-              color: "#000000", // 기본값
-              category: "technology", // 기본값
-            },
-          });
-        }
+  // NOTE: stacks를 기반으로 태그를 생성하거나 찾고 ProjectTag 관계를 설정하는 메서드
+  private async linkProjectTags(
+    tx: Prisma.TransactionClient,
+    projectId: number,
+    stackNames: string[],
+  ) {
+    for (const stackName of stackNames) {
+      const tag = await this.findOrCreateTag(tx, stackName);
 
-        // ProjectTag 관계 생성 (중복 방지)
-        const existingRelation = await this.prisma.projectTag.findUnique({
-          where: {
-            projectId_tagId: {
-              projectId: projectId,
-              tagId: tag.id,
-            },
-          },
-        });
-
-        if (!existingRelation) {
-          await this.prisma.projectTag.create({
-            data: {
-              projectId: projectId,
-              tagId: tag.id,
-            },
-          });
-        }
+      const existingRelation = await tx.projectTag.findUnique({
+        where: { projectId_tagId: { projectId, tagId: tag.id } },
+      });
+      if (!existingRelation) {
+        await tx.projectTag.create({ data: { projectId, tagId: tag.id } });
       }
-    } catch (error) {
-      console.warn("Error creating/updating project tags:", error);
     }
   }
 
-  // NOTE: 프로젝트 태그 관계를 효율적으로 업데이트하는 메서드
-  private async updateProjectTagsEfficiently(
+  // NOTE: 기존 관계는 유지하고 빠진 태그 관계는 삭제, 새 태그 관계만 추가
+  private async syncProjectTags(
+    tx: Prisma.TransactionClient,
     projectId: number,
-    newStacks: string,
+    stackNames: string[],
   ) {
-    try {
-      // 새로운 stacks JSON 파싱
-      const newStackArray = JSON.parse(newStacks) as string[];
+    const existingProjectTags = await tx.projectTag.findMany({
+      where: { projectId },
+      include: { tag: true },
+    });
 
-      // 기존 프로젝트 태그 관계 조회
-      const existingProjectTags = await this.prisma.projectTag.findMany({
-        where: { projectId },
-        include: { tag: true },
+    const newTags: Tag[] = [];
+    for (const stackName of stackNames) {
+      newTags.push(await this.findOrCreateTag(tx, stackName));
+    }
+
+    const existingTagNames = existingProjectTags.map((pt) => pt.tag.name);
+    const newTagNames = newTags.map((tag) => tag.name);
+
+    const tagsToRemove = existingProjectTags.filter(
+      (pt) => !newTagNames.includes(pt.tag.name),
+    );
+    const tagsToAdd = newTags.filter(
+      (tag) => !existingTagNames.includes(tag.name),
+    );
+
+    if (tagsToRemove.length > 0) {
+      await tx.projectTag.deleteMany({
+        where: { id: { in: tagsToRemove.map((pt) => pt.id) } },
       });
-
-      // 새로운 태그들을 찾거나 생성
-      const newTags: Tag[] = [];
-      for (const stackName of newStackArray) {
-        let tag = await this.prisma.tag.findUnique({
-          where: { name: stackName },
-        });
-
-        if (!tag) {
-          tag = await this.prisma.tag.create({
-            data: {
-              name: stackName,
-              icon: "default-icon",
-              color: "#000000",
-              category: "technology",
-            },
-          });
-        }
-        newTags.push(tag);
-      }
-
-      // 기존 태그 이름들과 새로운 태그 이름들
-      const existingTagNames = existingProjectTags.map((pt) => pt.tag.name);
-      const newTagNames = newTags.map((tag) => tag.name);
-
-      // 제거할 태그들 (기존에 있지만 새로운 stacks에 없는 태그들)
-      const tagsToRemove = existingProjectTags.filter(
-        (pt) => !newTagNames.includes(pt.tag.name),
-      );
-
-      // 추가할 태그들 (새로운 stacks에 있지만 기존에 없는 태그들)
-      const tagsToAdd = newTags.filter(
-        (tag) => !existingTagNames.includes(tag.name),
-      );
-
-      // 제거할 태그 관계 삭제
-      if (tagsToRemove.length > 0) {
-        await this.prisma.projectTag.deleteMany({
-          where: {
-            id: {
-              in: tagsToRemove.map((pt) => pt.id),
-            },
-          },
-        });
-      }
-
-      // 추가할 태그 관계 생성
-      for (const tag of tagsToAdd) {
-        await this.prisma.projectTag.create({
-          data: {
-            projectId: projectId,
-            tagId: tag.id,
-          },
-        });
-      }
-    } catch (error) {
-      console.warn("Error updating project tags efficiently:", error);
+    }
+    for (const tag of tagsToAdd) {
+      await tx.projectTag.create({ data: { projectId, tagId: tag.id } });
     }
   }
 
   async create(data: AdminProjectCreateRequest) {
-    const project = await this.prisma.project.create({ data });
+    const stackNames = this.parseStacks(data.stacks);
 
-    // 프로젝트 생성 후 태그 관계 설정
-    await this.createOrUpdateProjectTags(project.id, data.stacks);
-
-    return project;
+    return this.prisma.$transaction(async (tx) => {
+      const project = await tx.project.create({ data });
+      await this.linkProjectTags(tx, project.id, stackNames);
+      return project;
+    });
   }
 
   async findAll() {
@@ -182,20 +148,20 @@ export class AdminProjectService {
     });
 
     if (!existingProject) {
-      throw new Error("Project not found");
+      throw new NotFoundException("Project not found");
     }
 
-    // 프로젝트 업데이트
-    await this.prisma.project.update({
-      where: { slug },
-      data,
+    const stackNames =
+      data.stacks && data.stacks !== existingProject.stacks
+        ? this.parseStacks(data.stacks)
+        : null;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.project.update({ where: { slug }, data });
+      if (stackNames) {
+        await this.syncProjectTags(tx, existingProject.id, stackNames);
+      }
     });
-
-    // stacks가 업데이트된 경우에만 태그 관계 재설정
-    if (data.stacks && data.stacks !== existingProject.stacks) {
-      // 효율적인 태그 관계 업데이트 (기존 관계 유지, 추가/제거만 처리)
-      await this.updateProjectTagsEfficiently(existingProject.id, data.stacks);
-    }
 
     return {
       status: 200,
@@ -205,7 +171,7 @@ export class AdminProjectService {
 
   async updateShow(data: AdminProjectStatusUpdateRequest) {
     if (typeof data.slug !== "string" || typeof data.isShow !== "boolean") {
-      throw new Error("Invalid data types for slug or isShow");
+      throw new BadRequestException("Invalid data types for slug or isShow");
     }
     await this.prisma.project.update({
       where: { slug: data.slug },
@@ -256,7 +222,7 @@ export class AdminProjectService {
           ],
         }
       : {};
-    const [data, , allTotal] = await this.prisma.$transaction([
+    const [data, filteredTotal, allTotal] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         skip: (page - 1) * size,
@@ -269,6 +235,7 @@ export class AdminProjectService {
     return {
       data,
       total: data.length,
+      filteredTotal,
       allTotal,
       page,
       size,
