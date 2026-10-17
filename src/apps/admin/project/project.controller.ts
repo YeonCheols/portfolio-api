@@ -87,7 +87,7 @@ export class AdminProjectController extends AdminAuthController {
   @Patch(":slug")
   update(
     @Param("slug") slug: string,
-    @Body() updateProjectDto: AdminProjectUpdateRequest
+    @Body() updateProjectDto: AdminProjectUpdateRequest,
   ) {
     return this.adminProjectService.update(slug, updateProjectDto);
   }
@@ -96,7 +96,7 @@ export class AdminProjectController extends AdminAuthController {
   @Patch(":slug/show")
   updateShow(
     @Param("slug") slug: string,
-    @Body() statusUpdateDto: AdminProjectStatusUpdateRequest
+    @Body() statusUpdateDto: AdminProjectStatusUpdateRequest,
   ) {
     return this.adminProjectService.updateShow(statusUpdateDto);
   }
