@@ -20,7 +20,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "postinstall": "pnpm run prisma:generate"
+    "postinstall": "pnpm run prisma:generate",
     "deploy": "vercel .",
     "prisma:merge": "node prisma/merge-schema.js",
     "prisma:generate": "pnpm run prisma:merge && prisma generate",
