@@ -98,10 +98,10 @@ gh pr view <번호> --json assignees --jq '.assignees[].login'
 
 ## 코드 리뷰 댓글
 
-PR 생성 후 `review` 스킬을 branch 모드로 실행하고, 결과를 PR 댓글로 남긴다. 본인 PR은 approve할 수 없으므로 리뷰는 댓글로 남긴다.
+PR 생성 후 `review` 스킬을 branch 모드로 실행하고, 결과를 PR 댓글로 남긴다. 본문은 `.agents/skills/review/TEMPLATE.md`만 채운다. 본인 PR은 approve할 수 없으므로 리뷰는 댓글로 남긴다.
 
 ```bash
-# 본문 첫 줄은 <!-- ai-review:local --> (CI 리뷰 댓글 <!-- ai-review:ci -->와 구분)
+# 첫 줄 <!-- ai-review:local --> 다음에 TEMPLATE.md 본문만 (CI는 <!-- ai-review:ci -->)
 gh pr comment <번호> --body-file /tmp/review-<번호>.md
 ```
 

@@ -88,7 +88,7 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
    - PR 담당자(assignee)는 반드시 현재 `gh`에 로그인된 활성 GitHub 계정으로 지정한다
    - PR 생성 후 `review` 스킬(branch) 결과를 PR 댓글로 남기고, 최신 리뷰에 🔴 항목이 남아 있으면 머지하지 않는다
 4. **코드 리뷰 기준 → `review` 스킬**
-   - 로컬 리뷰와 CI `/review`(`.github/workflows/ai-review.yml`)는 모두 `review` 스킬의 관점·심각도·출력 형식을 따른다. 리뷰 기준은 이 스킬에서만 수정한다
+   - 로컬 리뷰와 CI `/review`(`.github/workflows/ai-review.yml`)는 모두 `review` 스킬의 관점·심각도를 따르고, 댓글 본문은 `.agents/skills/review/TEMPLATE.md`만 채운다. 발견마다 TDD 근거가 있어야 한다. 리뷰 기준은 이 스킬에서만 수정한다
 
 ### 스킬 목록
 
