@@ -1,14 +1,8 @@
 name: ai-review
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches:
-      - master
-      - dev
-    paths-ignore:
-      - "**.md"
-  # PR 댓글 "/review"로 재실행 (기본 브랜치의 이 파일 기준으로 동작)
+  # PR 생성·푸시 자동 실행은 꺼 둔다. 댓글 /review 로만 실행한다.
+  # issue_comment 워크플로는 기본 브랜치의 이 파일 기준으로 동작한다.
   issue_comment:
     types: [created]
 
@@ -25,13 +19,10 @@ jobs:
   review:
     name: AI Code Review
     if: >-
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.draft == false &&
-       github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request &&
-       startsWith(github.event.comment.body, '/review') &&
-       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

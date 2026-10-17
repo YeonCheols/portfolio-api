@@ -106,8 +106,8 @@ gh pr comment <번호> --body-file /tmp/review-<번호>.md
 ```
 
 - PR에 커밋을 추가로 푸시한 경우 리뷰를 다시 실행해 새 댓글을 남긴다
-- CI(`ai-review` 워크플로)도 같은 스킬로 자동 리뷰 댓글을 남긴다. 로컬 리뷰와 CI 리뷰의 🔴 항목은 모두 머지 전 확인 대상이다
-- CI 리뷰를 다시 돌리려면 PR에 `/review` 댓글을 단다 (`gh pr comment <번호> --body "/review"`, 문서만 바뀐 PR도 리뷰됨)
+- CI(`ai-review` 워크플로)는 PR 생성·푸시로 자동 실행되지 않는다. PR에 `/review` 댓글을 달면 같은 스킬로 리뷰 댓글을 남긴다 (`gh pr comment <번호> --body "/review"`)
+- 로컬 리뷰와 CI 리뷰의 🔴 항목은 모두 머지 전 확인 대상이다
 
 ## 머지 (요청 시) — CI 통과 필수
 
