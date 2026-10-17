@@ -7,7 +7,7 @@
 - NestJS 11 + Prisma 6 (PostgreSQL) 기반 포트폴리오 백엔드 API
 - 패키지 매니저: **pnpm** (npm/yarn 사용 금지)
 - 배포: Vercel (`vercel.json`), `master` 푸시 시 GitHub Actions가 태그/릴리스 생성
-- CI: `master`/`dev` 대상 PR마다 `.github/workflows/ci.yml`이 `lint:check`, `format:check`, `typecheck`, `test:cov` 실행
+- CI: `master`/`dev` 대상 PR마다 `.github/workflows/ci.yml`이 `lint:check`, `format:check`, `typecheck`, `test:cov` 실행 (비공개 Free 플랜이라 브랜치 보호로 머지를 막을 수 없으므로, PR 머지 전 CI 통과 확인은 `pr` 스킬 절차로 강제)
 - 응답 언어: 사용자에게는 **한국어**로 답변
 
 ## 디렉토리 구조
