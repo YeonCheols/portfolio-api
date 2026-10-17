@@ -1,3 +1,5 @@
 {
-  "cSpell.enabled": false
+  "cSpell.enabled": false,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
 }
