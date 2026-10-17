@@ -1,0 +1,36 @@
+name: health-check
+
+on:
+  schedule:
+    # 비공개 저장소 Actions 무료 한도(월 2,000분)를 고려해 1시간 간격 (UTC 기준)
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  db:
+    name: Production DB health
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      HEALTH_URL: https://api.ycseng.com/health/db
+    steps:
+      - name: Check /health/db
+        run: |
+          # 콜드 스타트/일시 오류를 고려해 3회까지 재시도
+          for i in 1 2 3; do
+            code=$(curl -s -o body.json -w "%{http_code}" --max-time 15 "$HEALTH_URL" || echo "000")
+            echo "attempt $i: HTTP $code $(cat body.json 2>/dev/null)"
+            if [ "$code" = "200" ]; then
+              echo "### ✅ DB up (HTTP $code)" >> "$GITHUB_STEP_SUMMARY"
+              echo '```json' >> "$GITHUB_STEP_SUMMARY"
+              cat body.json >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "### ❌ DB health check failed (HTTP $code)" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
