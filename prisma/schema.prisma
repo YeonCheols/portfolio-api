@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  // 루트 node_modules에 생성해 심볼릭 링크를 따라가지 않는 환경에서도 해석되게 한다
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
