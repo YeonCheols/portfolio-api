@@ -14,9 +14,12 @@ describe("AppController", () => {
     appController = app.get<AppController>(AppController);
   });
 
-  describe("root", () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe("Hello World!");
+  describe("rootController", () => {
+    it("루트 경로로 요청하면 403 not allowed url 응답을 반환한다", () => {
+      expect(appController.rootController()).toEqual({
+        status: 403,
+        message: "not allowed url",
+      });
     });
   });
 });
