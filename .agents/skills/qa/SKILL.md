@@ -11,14 +11,17 @@ description: 변경사항에 대해 정적 검증(린트/타입/빌드), 테스�
 
 ## 1단계: 정적 검증
 
+PR CI(`.github/workflows/ci.yml`)와 같은 명령을 사용한다.
+
 ```bash
-pnpm lint
-npx tsc --noEmit -p tsconfig.json
+pnpm lint:check
+pnpm format:check
+pnpm typecheck
 pnpm build
 ```
 
 - Prisma 스키마 변경 시 먼저 `pnpm prisma:generate`
-- `pnpm lint`는 `--fix`가 포함되어 파일을 수정할 수 있다. 수정된 파일이 생기면 리포트에 명시한다
+- 실패하면 `pnpm lint` / `pnpm format`(자동 수정)으로 고친 뒤 다시 검사하고, 자동 수정된 파일을 리포트에 명시한다
 
 ## 2단계: 테스트
 
@@ -59,6 +62,7 @@ DB/환경변수가 필요하므로 실행 전 사용자에게 확인한다.
 | 항목 | 결과 | 비고 |
 |------|------|------|
 | Lint | ✅/❌ | |
+| 포맷 | ✅/❌ | |
 | 타입 체크 | ✅/❌ | |
 | 빌드 | ✅/❌ | |
 | 단위 테스트 | ✅/❌ | n passed / m failed |

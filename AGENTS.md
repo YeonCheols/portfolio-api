@@ -7,6 +7,7 @@
 - NestJS 11 + Prisma 6 (PostgreSQL) 기반 포트폴리오 백엔드 API
 - 패키지 매니저: **pnpm** (npm/yarn 사용 금지)
 - 배포: Vercel (`vercel.json`), `master` 푸시 시 GitHub Actions가 태그/릴리스 생성
+- CI: `master`/`dev` 대상 PR마다 `.github/workflows/ci.yml`이 `lint:check`, `format:check`, `typecheck`, `test:cov` 실행
 - 응답 언어: 사용자에게는 **한국어**로 답변
 
 ## 디렉토리 구조
@@ -36,7 +37,10 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 | 개발 서버 | `pnpm start:dev` |
 | 빌드 | `pnpm build` |
 | 린트 (자동 수정) | `pnpm lint` |
+| 린트 검사 (CI) | `pnpm lint:check` |
 | 포맷 | `pnpm format` |
+| 포맷 검사 (CI) | `pnpm format:check` |
+| 타입 검사 (CI) | `pnpm typecheck` |
 | 단위 테스트 | `pnpm test` / `pnpm test -- <경로>` |
 | 커버리지 | `pnpm test:cov` |
 | e2e 테스트 | `pnpm test:e2e` |
