@@ -2,7 +2,16 @@ import { Logger } from "@nestjs/common";
 import { PrismaService } from "./prisma.service";
 
 describe("PrismaService", () => {
+  const originalUrl = process.env.DATABASE_URL;
   let service: PrismaService;
+
+  beforeAll(() => {
+    process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/test";
+  });
+
+  afterAll(() => {
+    process.env.DATABASE_URL = originalUrl;
+  });
 
   beforeEach(() => {
     jest.restoreAllMocks();
