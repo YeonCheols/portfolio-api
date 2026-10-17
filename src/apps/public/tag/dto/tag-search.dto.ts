@@ -47,6 +47,9 @@ export class TagSearchResponse {
   @ApiProperty({ description: "현재 페이지 태그 수", example: 10 })
   total: number;
 
+  @ApiProperty({ description: "검색 조건에 맞는 전체 태그 수", example: 42 })
+  filteredTotal: number;
+
   @ApiProperty({ description: "전체 태그 수", example: 100 })
   allTotal: number;
 
