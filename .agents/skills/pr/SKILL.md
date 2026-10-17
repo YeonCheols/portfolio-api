@@ -18,7 +18,8 @@ disable-model-invocation: true
 - [ ] 7. 담당자 계정 확인: gh api user --jq .login
 - [ ] 8. 템플릿에 맞춰 본문 작성 후 gh pr create --assignee <login>
 - [ ] 9. 담당자 지정 검증: gh pr view --json assignees
-- [ ] 10. PR URL 보고
+- [ ] 10. 코드 리뷰: review 스킬 branch 모드 → 결과를 PR 댓글로 작성
+- [ ] 11. PR URL과 리뷰 요약 보고
 ```
 
 먼저 `git fetch origin`으로 베이스를 최신화하고, 이미 열린 PR이 있는지 `gh pr list --head <branch>`로 확인한다. 있으면 새로 만들지 않고 `gh pr edit`로 갱신할지 사용자에게 묻는다.
@@ -95,6 +96,19 @@ gh pr view <번호> --json assignees --jq '.assignees[].login'
 - 사용자가 요청하면 `--draft`, `--reviewer`, `--label` 추가
 - 머지는 사용자 명시 요청 없이는 하지 않는다
 
+## 코드 리뷰 댓글
+
+PR 생성 후 `review` 스킬을 branch 모드로 실행하고, 결과를 PR 댓글로 남긴다. 본문은 `.agents/skills/review/TEMPLATE.md`만 채운다. 본인 PR은 approve할 수 없으므로 리뷰는 댓글로 남긴다.
+
+```bash
+# 첫 줄 <!-- ai-review:local --> 다음에 TEMPLATE.md 본문만 (CI는 <!-- ai-review:ci -->)
+gh pr comment <번호> --body-file /tmp/review-<번호>.md
+```
+
+- PR에 커밋을 추가로 푸시한 경우 리뷰를 다시 실행해 새 댓글을 남긴다
+- CI(`ai-review` 워크플로)는 PR 생성·푸시로 자동 실행되지 않는다. PR에 `/review` 댓글을 달면 같은 스킬로 리뷰 댓글을 남긴다 (`gh pr comment <번호> --body "/review"`)
+- 로컬 리뷰와 CI 리뷰의 🔴 항목은 모두 머지 전 확인 대상이다
+
 ## 머지 (요청 시) — CI 통과 필수
 
 비공개 Free 플랜이라 브랜치 보호로 CI 실패 PR의 머지를 막을 수 없다. 머지 전에 **반드시** 모든 체크가 통과했는지 직접 확인한다.
@@ -105,6 +119,11 @@ gh pr merge <번호> --merge                # 위 명령이 성공(0)했을 때�
 ```
 
 - 체크가 실패·취소되었거나 아직 실행되지 않았으면 머지하지 않고 실패한 체크와 원인을 사용자에게 보고한다
+- 리뷰 댓글(`ai-review:local`, `ai-review:ci`)의 **가장 최근 것**에 해결되지 않은 🔴 항목이 있으면 머지하지 않고 보고한다. AI 리뷰는 댓글만 남기고 체크를 실패시키지 않으므로, 이 확인은 체크 통과와 별개로 반드시 수행한다
+
+```bash
+gh pr view <번호> --json comments --jq '[.comments[] | select(.body | test("ai-review:"))] | last | .body' | grep "🔴"
+```
 - 사용자가 실패를 알고도 머지를 명시적으로 요청한 경우에만 예외로 하고, 그 사실을 보고에 남긴다
 - `master` 머지는 Production 배포로 이어지므로, 머지 후 Vercel 배포 상태와 주요 API 응답을 확인해 보고한다
 

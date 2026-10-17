@@ -42,17 +42,9 @@ DB/환경변수가 필요하므로 실행 전 사용자에게 확인한다.
 3. Swagger(`/api`)에 DTO 스키마가 반영됐는지 확인
 4. 확인 후 서버 종료
 
-## 4단계: 코드 리뷰 체크리스트
+## 4단계: 코드 리뷰
 
-- [ ] DTO에 `class-validator`, Swagger 데코레이터가 있고 `dto/index.ts`에 export됨
-- [ ] admin 엔드포인트에 `JwtAuthGuard` 적용, public에서 비공개 데이터(노출여부 등) 필터링
-- [ ] 페이징: `page`/`size` 숫자 변환·기본값, `skip` 계산 정확
-- [ ] 여러 쓰기 작업/관계 테이블 갱신은 `$transaction` 사용
-- [ ] 없는 리소스 처리 (`NotFoundException` 등), Prisma 에러 노출 없음
-- [ ] 새 모듈이 상위 `index.module.ts`에 등록됨
-- [ ] Prisma 스키마 변경 시 마이그레이션 파일 포함
-- [ ] 새 환경변수는 README에 문서화, 비밀값 하드코딩 없음
-- [ ] `console.log` 디버그 코드, 사용하지 않는 import 없음
+`review` 스킬(`.agents/skills/review/SKILL.md`)을 변경 범위에 맞는 모드(staged/branch)로 실행하고, 그 발견 사항을 아래 리포트의 "발견 사항"에 그대로 옮긴다. 리뷰 관점과 심각도 기준은 `review` 스킬이 원본이다.
 
 ## 리포트 형식
 

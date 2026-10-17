@@ -8,6 +8,7 @@
 - 패키지 매니저: **pnpm** (npm/yarn 사용 금지)
 - 배포: Vercel (`vercel.json`), `master` 푸시 시 GitHub Actions가 태그/릴리스 생성
 - CI: `master`/`dev` 대상 PR마다 `.github/workflows/ci.yml`이 `lint:check`, `format:check`, `typecheck`, `test:cov` 실행 (비공개 Free 플랜이라 브랜치 보호로 머지를 막을 수 없으므로, PR 머지 전 CI 통과 확인은 `pr` 스킬 절차로 강제)
+- AI 리뷰: `.github/workflows/ai-review.yml`은 PR 댓글 `/review`로만 실행한다. PR 생성·푸시 자동 실행은 꺼 두었다 (`CURSOR_API_KEY` secret 필요, 체크는 실패시키지 않음)
 - 응답 언어: 사용자에게는 **한국어**로 답변
 
 ## 디렉토리 구조
@@ -80,10 +81,14 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
    - 코드를 수정하면 관련 파일의 테스트 코드도 반드시 추가하거나 수정한다 (구현만 바뀐 상태로 끝내지 않음)
    - 문서(`*.md`)나 설정만 바꾸는 경우는 예외지만, 그 판단 근거를 사용자에게 알린다
 2. **커밋 → `commit` 스킬 필수**
-   - 모든 커밋은 `commit` 스킬의 절차(검토 → 검증 → 선별 스테이징 → 메시지 형식)로만 수행한다
+   - 모든 커밋은 `commit` 스킬의 절차(검토 → 검증 → 선별 스테이징 → 코드 리뷰 → 메시지 형식)로만 수행한다
+   - 코드 변경 커밋은 직전에 `review` 스킬(staged)을 실행하고, 🔴 항목이 있으면 커밋하지 않고 보고한다
 3. **PR 생성 → `pr` 스킬 필수**
    - 모든 PR은 `pr` 스킬의 절차와 PR 템플릿 형식으로만 생성한다
    - PR 담당자(assignee)는 반드시 현재 `gh`에 로그인된 활성 GitHub 계정으로 지정한다
+   - PR 생성 후 `review` 스킬(branch) 결과를 PR 댓글로 남기고, 최신 리뷰에 🔴 항목이 남아 있으면 머지하지 않는다
+4. **코드 리뷰 기준 → `review` 스킬**
+   - 로컬 리뷰와 CI `/review`(`.github/workflows/ai-review.yml`)는 모두 `review` 스킬의 관점·심각도를 따르고, 댓글 본문은 `.agents/skills/review/TEMPLATE.md`만 채운다. 발견마다 TDD 근거가 있어야 한다. 리뷰 기준은 이 스킬에서만 수정한다
 
 ### 스킬 목록
 
@@ -93,8 +98,10 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 | `commit` | `.agents/skills/commit/SKILL.md` | **커밋할 때 항상** |
 | `pr` | `.agents/skills/pr/SKILL.md` | **PR을 생성할 때 항상** |
 | `qa` | `.agents/skills/qa/SKILL.md` | 작업 완료 전 검증, 커밋/PR 직전, "QA 해줘" 요청 시 |
+| `review` | `.agents/skills/review/SKILL.md` | **커밋 직전(staged), PR 생성 직후(branch), CI `/review`**, "리뷰 해줘" 요청 시 |
+| `usage` | `.agents/skills/usage/SKILL.md` | "사용량", "남은 한도" 확인 요청 시 (Cursor 플랜 %, ai-review 실행 기록) |
 
-일반적인 작업 흐름: `tdd` → `qa` → `commit` → `pr`
+일반적인 작업 흐름: `tdd` → `qa` → `commit`(→ `review` staged) → `pr`(→ `review` branch 댓글) → CI(`ci`) → 체크 통과·🔴 해소 확인 후 머지. CI 리뷰는 PR 댓글 `/review`로만 실행한다
 
 새 스킬 추가 방법:
 
