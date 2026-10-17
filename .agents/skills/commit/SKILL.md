@@ -13,9 +13,12 @@ disable-model-invocation: true
 - [ ] 2. 커밋 대상 선별 (관련 없는 변경/민감 파일 제외)
 - [ ] 3. 검증: pnpm lint, 변경 범위 관련 pnpm test
 - [ ] 4. 논리 단위로 스테이징 (git add <파일>; git add -A 지양)
-- [ ] 5. 커밋 메시지 작성 및 커밋
-- [ ] 6. git status로 결과 확인, 요청 시에만 푸시
+- [ ] 5. 코드 리뷰: review 스킬 staged 모드 (git diff --staged) → 🔴 있으면 커밋 중단 후 보고
+- [ ] 6. 커밋 메시지 작성 및 커밋
+- [ ] 7. git status로 결과 확인, 요청 시에만 푸시
 ```
+
+5단계는 `src/`, `test/`, `prisma/`, `utils/`, `.github/workflows/` 변경이 스테이징된 경우 필수다. 문서(`*.md`)만 커밋할 때는 생략할 수 있고, 생략했다고 보고한다.
 
 ## 커밋 대상 제외
 
