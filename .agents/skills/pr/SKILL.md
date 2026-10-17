@@ -15,8 +15,10 @@ disable-model-invocation: true
 - [ ] 4. 변경 분석: git log --oneline origin/<base>..HEAD, git diff origin/<base>...HEAD --stat
 - [ ] 5. 검증: pnpm lint, pnpm test, pnpm build
 - [ ] 6. 원격 푸시: git push -u origin HEAD
-- [ ] 7. 템플릿에 맞춰 본문 작성 후 gh pr create
-- [ ] 8. PR URL 보고
+- [ ] 7. 담당자 계정 확인: gh api user --jq .login
+- [ ] 8. 템플릿에 맞춰 본문 작성 후 gh pr create --assignee <login>
+- [ ] 9. 담당자 지정 검증: gh pr view --json assignees
+- [ ] 10. PR URL 보고
 ```
 
 먼저 `git fetch origin`으로 베이스를 최신화하고, 이미 열린 PR이 있는지 `gh pr list --head <branch>`로 확인한다. 있으면 새로 만들지 않고 `gh pr edit`로 갱신할지 사용자에게 묻는다.
@@ -62,13 +64,32 @@ disable-model-invocation: true
 
 체크리스트는 5단계 검증 결과에 따라 **실제로 확인된 항목만** `[x]`로 표시한다.
 
+## 담당자 (assignee) — 필수
+
+PR 담당자는 **반드시 현재 `gh`에 로그인된 활성 GitHub 계정**으로 지정한다. 담당자 없이 PR을 만들지 않는다.
+
+```bash
+gh auth status                       # 활성 계정(Active account: true) 확인
+ASSIGNEE=$(gh api user --jq .login)  # 활성 계정 로그인 이름
+```
+
+- 계정이 여러 개 로그인돼 있으면 활성 계정을 사용하고, 어떤 계정으로 지정했는지 보고한다
+- 로그인돼 있지 않거나 `gh api user`가 실패하면 PR을 만들지 말고 `gh auth login`을 사용자에게 요청한다
+- 다른 계정을 지정하려고 `gh auth switch`를 임의로 실행하지 않는다
+
 ## 생성 명령
 
 ```bash
-gh pr create --base master --title "feat: 태그 검색 페이징 추가" --body "$(cat <<'EOF'
+gh pr create --base master --assignee "$ASSIGNEE" --title "feat: 태그 검색 페이징 추가" --body "$(cat <<'EOF'
 ...본문...
 EOF
 )"
+```
+
+생성 후 담당자를 검증한다. 비어 있으면 `gh pr edit <번호> --add-assignee "$ASSIGNEE"`로 지정하고 다시 확인한다.
+
+```bash
+gh pr view <번호> --json assignees --jq '.assignees[].login'
 ```
 
 - 사용자가 요청하면 `--draft`, `--reviewer`, `--label` 추가
@@ -76,4 +97,4 @@ EOF
 
 ## 보고
 
-PR 링크를 마크다운 링크로 제공하고, 검증 중 실패하거나 건너뛴 항목이 있으면 함께 알린다.
+PR 링크를 마크다운 링크로 제공하고, 지정된 담당자 계정과 검증 중 실패하거나 건너뛴 항목을 함께 알린다.
