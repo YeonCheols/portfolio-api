@@ -42,4 +42,34 @@ describe("PrismaService", () => {
       );
     });
   });
+
+  describe("종료", () => {
+    it("모듈이 내려가면 DB 연결을 끊는다", async () => {
+      const disconnect = jest
+        .spyOn(service, "$disconnect")
+        .mockResolvedValue(undefined);
+
+      await expect(service.onModuleDestroy()).resolves.toBeUndefined();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it("프로세스 종료 전에 앱을 닫는다", async () => {
+      const close = jest.fn();
+      let onExit: (() => Promise<void>) | undefined;
+      jest.spyOn(process, "on").mockImplementation(((
+        event: string,
+        listener: () => Promise<void>,
+      ) => {
+        if (event === "beforeExit") {
+          onExit = listener;
+        }
+        return process;
+      }) as typeof process.on);
+
+      await service.enableShutdownHooks({ close } as never);
+      await onExit?.();
+
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+  });
 });

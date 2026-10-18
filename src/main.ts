@@ -6,7 +6,7 @@ import * as fs from "fs";
 import { INestApplication } from "@nestjs/common";
 import { canAdvancePortOnConflict, resolveListenPort } from "./listen-port";
 
-async function bootstrap() {
+export async function bootstrap() {
   let app: INestApplication;
   const portFromEnv = process.env.PORT;
   let port = resolveListenPort(portFromEnv);
@@ -78,4 +78,13 @@ async function bootstrap() {
     }
   }
 }
-void bootstrap();
+export async function startIfDirect(
+  current: NodeJS.Module = module,
+  entry: NodeJS.Module | undefined = require.main,
+): Promise<void> {
+  if (entry === current) {
+    await bootstrap();
+  }
+}
+
+void startIfDirect();

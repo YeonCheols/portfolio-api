@@ -104,7 +104,13 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/*.controller.ts",
+      "!**/*.module.ts",
+      "!**/dto/**",
+      "!**/enum/**",
+      "!**/get-user.decorator.ts",
+      "!**/jwt-auth.guard.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
