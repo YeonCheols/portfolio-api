@@ -9,7 +9,7 @@
 - 배포: Vercel (`vercel.json`), `master` 푸시 시 GitHub Actions가 태그/릴리스 생성
 - CI: `master`/`dev` 대상 PR마다 `.github/workflows/ci.yml`이 `lint:check`, `format:check`, `typecheck`, `test:cov` 실행 (비공개 Free 플랜이라 브랜치 보호로 머지를 막을 수 없으므로, PR 머지 전 CI 통과 확인은 `pr` 스킬 절차로 강제)
 - AI 리뷰: `.github/workflows/ai-review.yml`은 PR 댓글 `/review`로만 실행한다. PR 생성·푸시 자동 실행은 꺼 두었다 (`CURSOR_API_KEY` secret 필요, 체크는 실패시키지 않음)
-- 응답 언어: 사용자에게는 **한국어**로 답변
+- 응답 언어: 사용자에게는 **한국어**로 답변한다. 한국어 문장은 표준 문장체인 `습니다`/`ㅂ니다`로 끝낸다. 코드, 식별자, 커밋 제목처럼 문장이 아닌 표기는 제외한다.
 
 ## 디렉토리 구조
 
