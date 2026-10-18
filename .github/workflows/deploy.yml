@@ -65,7 +65,7 @@ jobs:
             DATABASE_DIRECT_URL=DATABASE_DIRECT_URL:latest
             RESEND_API_KEY=RESEND_API_KEY:latest
             NODE_ENV=NODE_ENV:latest
-          flags: --min-instances=0 --memory=512Mi --cpu=1 --port=8080 --allow-unauthenticated --service-account=${{ env.SERVICE_ACCOUNT }} --startup-probe=httpGet.path=/health,httpGet.port=8080,timeoutSeconds=3,periodSeconds=5,failureThreshold=6
+          flags: --min-instances=0 --memory=1Gi --cpu=2 --port=8080 --allow-unauthenticated --service-account=${{ env.SERVICE_ACCOUNT }} --startup-probe=httpGet.path=/health,httpGet.port=8080,timeoutSeconds=3,periodSeconds=5,failureThreshold=6
 
       - name: Show Output
         run: |-
