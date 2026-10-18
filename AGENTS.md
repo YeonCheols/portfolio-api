@@ -64,6 +64,7 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 
 - `.env`, `.env.local`, `cert/`, `.vercel/` 내용을 커밋하거나 출력하지 않는다
 - `master` 브랜치에 직접 커밋/푸시하지 않는다 (작업 브랜치는 `dev` 또는 기능 브랜치)
+- `master`를 기준으로 브랜치를 만들거나 병합·비교·PR 베이스로 쓸 때는 먼저 `git fetch origin`으로 `origin/master` 최신을 받은 뒤 그 커밋을 쓴다. 로컬 `master`가 뒤처져 있으면 그 브랜치를 기준으로 삼지 않는다.
 - `git push --force`, `git reset --hard`, 마이그레이션 삭제 등 파괴적 작업은 사용자 확인 후에만 수행
 - 사용자가 요청하지 않은 커밋/푸시/PR 생성은 하지 않는다
 
