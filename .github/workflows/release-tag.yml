@@ -1,4 +1,4 @@
-name: tag release
+name: 릴리스 태그
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   setup-build-deploy:
-    name: Setup, Build, and Deploy
+    name: 태그·릴리스
     runs-on: ubuntu-latest
     permissions:
       packages: write

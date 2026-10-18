@@ -1,6 +1,6 @@
 # google-github-actions/example-workflows 의 cloudrun-docker.yml 구성.
 # master 푸시만 *.run.app 으로 올린다. api.ycseng.com 은 도메인 매핑 전까지 Vercel이다.
-name: Build and Deploy to Cloud Run
+name: Cloud Run 배포
 
 on:
   push:
@@ -22,6 +22,7 @@ env:
 
 jobs:
   deploy:
+    name: Cloud Run 배포
     permissions:
       contents: read
       id-token: write
