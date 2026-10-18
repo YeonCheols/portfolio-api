@@ -6,10 +6,10 @@
 
 - NestJS 11 + Prisma 6 (PostgreSQL) 기반 포트폴리오 백엔드 API
 - 패키지 매니저: **pnpm** (npm/yarn 사용 금지)
-- 배포: Vercel (`vercel.json`), `master` 푸시 시 GitHub Actions가 태그/릴리스 생성
+- 배포: `master` 푸시 시 GitHub Actions가 Cloud Run에 배포하고 태그/릴리스를 생성한다. `vercel.json`은 저장소에 남아 있다
 - CI: `master`/`dev` 대상 PR마다 `.github/workflows/ci.yml`이 `lint:check`, `format:check`, `typecheck`, `test:cov` 실행 (비공개 Free 플랜이라 브랜치 보호로 머지를 막을 수 없으므로, PR 머지 전 CI 통과 확인은 `pr` 스킬 절차로 강제)
 - AI 리뷰: `.github/workflows/ai-review.yml`은 PR 댓글 `/review`로만 실행한다. PR 생성·푸시 자동 실행은 꺼 두었다 (`CURSOR_API_KEY` secret 필요, 체크는 실패시키지 않음)
-- 응답 언어: 사용자에게는 **한국어**로 답변한다. 한국어 문장은 표준 문장체인 `습니다`/`ㅂ니다`로 끝낸다. 코드, 식별자, 커밋 제목처럼 문장이 아닌 표기는 제외한다.
+- 응답 언어: 사용자에게는 **한국어**로 답변한다. 한국어 문장은 표준 문장체인 `습니다`/`ㅂ니다`로 끝낸다. 이슈 제목과 본문도 같은 어미로 끝낸다. `다`로 끝내지 않고, 한 이슈 안에서 어미를 섞지 않는다. 이슈 본문은 `issue` 스킬을 따른다. 코드, 식별자, 커밋 제목처럼 문장이 아닌 표기는 제외한다.
 
 ## 디렉토리 구조
 
@@ -66,7 +66,8 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 - `master` 브랜치에 직접 커밋/푸시하지 않는다 (작업 브랜치는 `dev` 또는 기능 브랜치)
 - `master`를 기준으로 브랜치를 만들거나 병합·비교·PR 베이스로 쓸 때는 먼저 `git fetch origin`으로 `origin/master` 최신을 받은 뒤 그 커밋을 쓴다. 로컬 `master`가 뒤처져 있으면 그 브랜치를 기준으로 삼지 않는다.
 - `git push --force`, `git reset --hard`, 마이그레이션 삭제 등 파괴적 작업은 사용자 확인 후에만 수행
-- 사용자가 요청하지 않은 커밋/푸시/PR 생성은 하지 않는다
+- 사용자가 요청하지 않은 커밋/푸시/PR/이슈 생성은 하지 않는다
+- 이슈는 사용자가 닫으라고 하기 전에는 닫지 않는다. `Fixes`, `Closes`, `Resolves`와 `gh issue develop`는 머지 때 이슈를 닫으므로 쓰지 않는다. 관련 이슈는 `#번호`만 적는다
 
 ## 에이전트 스킬
 
@@ -90,6 +91,10 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
    - PR 생성 후 `review` 스킬(branch) 결과를 PR 댓글로 남기고, 최신 리뷰에 🔴 항목이 남아 있으면 머지하지 않는다
 4. **코드 리뷰 기준 → `review` 스킬**
    - 로컬 리뷰와 CI `/review`(`.github/workflows/ai-review.yml`)는 모두 `review` 스킬의 관점·심각도를 따르고, 댓글 본문은 `.agents/skills/review/TEMPLATE.md`만 채운다. 발견마다 TDD 근거가 있어야 한다. 리뷰 기준은 이 스킬에서만 수정한다
+5. **이슈 생성 → `issue` 스킬 필수**
+   - 모든 이슈는 `issue` 스킬과 `.github/ISSUE_TEMPLATE.md`로만 만든다. 상태는 `@NoCode_Build`의 Status이고 값은 `ToDo`, `In Progress`, `Review`, `Done`만 쓴다. 새 이슈는 `ToDo`다. 라벨로 상태를 만들지 않는다
+   - 예상, 변경범위, 코드, 1급 시민, 불변조건, TDD 기준 테스트 조건은 목록이다. 테스트 조건을 빼거나 뒤로 미루지 않는다
+   - 제목과 본문 문장은 `습니다`/`ㅂ니다`로 끝낸다. `다`로 끝내지 않는다
 
 ### 스킬 목록
 
@@ -101,8 +106,9 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 | `qa` | `.agents/skills/qa/SKILL.md` | 작업 완료 전 검증, 커밋/PR 직전, "QA 해줘" 요청 시 |
 | `review` | `.agents/skills/review/SKILL.md` | **커밋 직전(staged), PR 생성 직후(branch), CI `/review`**, "리뷰 해줘" 요청 시 |
 | `usage` | `.agents/skills/usage/SKILL.md` | "사용량", "남은 한도" 확인 요청 시 (Cursor 플랜 %, ai-review 실행 기록) |
+| `issue` | `.agents/skills/issue/SKILL.md` | **이슈를 만들 때 항상**. 본문은 `.github/ISSUE_TEMPLATE.md` |
 
-일반적인 작업 흐름: `tdd` → `qa` → `commit`(→ `review` staged) → `pr`(→ `review` branch 댓글) → CI(`ci`) → 체크 통과·🔴 해소 확인 후 머지. CI 리뷰는 PR 댓글 `/review`로만 실행한다
+일반적인 작업 흐름: 이슈가 필요하면 `issue` → `tdd` → `qa` → `commit`(→ `review` staged) → `pr`(→ `review` branch 댓글) → CI(`ci`) → 체크 통과·🔴 해소 확인 후 머지. CI 리뷰는 PR 댓글 `/review`로만 실행한다
 
 새 스킬 추가 방법:
 
