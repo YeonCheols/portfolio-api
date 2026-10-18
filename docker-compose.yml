@@ -1,0 +1,20 @@
+name: portfolio-api
+
+services:
+  api:
+    image: portfolio-api:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portfolio-api-local
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      PORT: "8080"
+      NODE_ENV: prd
+      DATABASE_URL: "${DATABASE_URL:?DATABASE_URL이 필요합니다}"
+      DATABASE_DIRECT_URL: "${DATABASE_DIRECT_URL:?DATABASE_DIRECT_URL이 필요합니다}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
