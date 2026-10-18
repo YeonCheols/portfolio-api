@@ -4,10 +4,12 @@ import { PrismaService } from "./prisma/prisma.service";
 import { setupSwagger } from "../utils/swagger";
 import * as fs from "fs";
 import { INestApplication } from "@nestjs/common";
+import { canAdvancePortOnConflict, resolveListenPort } from "./listen-port";
 
 async function bootstrap() {
   let app: INestApplication;
-  let port = 4001;
+  const portFromEnv = process.env.PORT;
+  let port = resolveListenPort(portFromEnv);
 
   // NOTE: 로컬 개발 환경에서 https 통신 목적
   if (
@@ -65,7 +67,7 @@ async function bootstrap() {
       `${strings.https}  ${strings.ready} on https://local.ycseng.com:${port}`,
     );
   } catch (error) {
-    if (error.code === "EADDRINUSE") {
+    if (error.code === "EADDRINUSE" && canAdvancePortOnConflict(portFromEnv)) {
       port = port + 1;
       await app.listen(port);
       console.info(
