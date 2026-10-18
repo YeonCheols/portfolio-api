@@ -1,0 +1,76 @@
+# google-github-actions/example-workflows 의 cloudrun-docker.yml 구성.
+# master 푸시만 *.run.app 으로 올린다. api.ycseng.com 은 도메인 매핑 전까지 Vercel이다.
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: project-b66f1d93-0f67-4e58-948
+  GAR_LOCATION: asia-northeast1
+  REPOSITORY: portfolio-api
+  SERVICE: portfolio-api
+  REGION: asia-northeast1
+  WORKLOAD_IDENTITY_PROVIDER: projects/219710330777/locations/global/workloadIdentityPools/github-actions/providers/github-actions
+  SERVICE_ACCOUNT: github-deploy@project-b66f1d93-0f67-4e58-948.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      id-token: write
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Docker Auth
+        uses: docker/login-action@v3
+        with:
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+          registry: ${{ env.GAR_LOCATION }}-docker.pkg.dev
+
+      - name: Build and Push Container
+        run: |-
+          docker build -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" ./
+          docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}"
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
+          secrets: |-
+            DATABASE_URL=DATABASE_URL:latest
+            DATABASE_DIRECT_URL=DATABASE_DIRECT_URL:latest
+            RESEND_API_KEY=RESEND_API_KEY:latest
+            NODE_ENV=NODE_ENV:latest
+          flags: --min-instances=0 --memory=1Gi --cpu=2 --port=8080 --allow-unauthenticated --service-account=${{ env.SERVICE_ACCOUNT }} --startup-probe=httpGet.path=/health,httpGet.port=8080,timeoutSeconds=3,periodSeconds=5,failureThreshold=6
+
+      - name: Show Output
+        run: |-
+          echo "url=${{ steps.deploy.outputs.url }}"
+          health="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${{ steps.deploy.outputs.url }}/health" || true)"
+          db="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${{ steps.deploy.outputs.url }}/health/db" || true)"
+          echo "health=${health} db=${db}"
+          test "$health" = "200" && test "$db" = "200"
