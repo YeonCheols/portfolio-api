@@ -47,6 +47,7 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 | 단위 테스트 | `pnpm test` / `pnpm test -- <경로>` |
 | 커버리지 | `pnpm test:cov` |
 | e2e 테스트 | `pnpm test:e2e` |
+| 통합 테스트 | `pnpm test:integration` |
 | Prisma 스키마 병합+생성 | `pnpm prisma:generate` |
 | 마이그레이션 | `pnpm prisma:migrate` |
 
