@@ -51,15 +51,15 @@ export class AdminUserService {
     const isMatch = await bcrypt.compare(loginUserDto.password, user.password);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
 
-    await this.prisma.adminUser.update({
-      where: { id: user.id },
-      data: { updatedAt: new Date() },
-    });
     const token = jwt.sign(
       { sub: user.id, email: user.email },
       getAdminJwtSecret(),
       { expiresIn: "1d" },
     );
+    await this.prisma.adminUser.update({
+      where: { id: user.id },
+      data: { updatedAt: new Date() },
+    });
 
     return {
       user: { id: user.id, email: user.email },

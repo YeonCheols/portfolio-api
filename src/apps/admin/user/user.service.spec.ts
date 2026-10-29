@@ -137,5 +137,20 @@ describe("AdminUserService", () => {
         }
       },
     );
+
+    it("JWT_SECRET이 없으면 접속 시간을 갱신하지 않는다", async () => {
+      restoreJwtSecret(undefined);
+      prisma.adminUser.findUnique.mockResolvedValue(user);
+      compare.mockResolvedValue(true as never);
+
+      try {
+        await expect(
+          service.login({ email: user.email, password: "plain" }),
+        ).rejects.toThrow("JWT_SECRET");
+        expect(prisma.adminUser.update).not.toHaveBeenCalled();
+      } finally {
+        process.env.JWT_SECRET = "test-secret";
+      }
+    });
   });
 });
