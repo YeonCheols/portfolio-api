@@ -56,6 +56,31 @@ model Project {
   projectTags ProjectTag[]
 }
 
+enum ResumeModelEnvironment {
+  development
+  production
+}
+
+enum ResumeModelProvider {
+  openrouter
+}
+
+// 환경별 활성 설정 하나는 마이그레이션의 부분 유니크 인덱스가 강제한다
+model ResumeModelSetting {
+  id          Int                    @id @default(autoincrement())
+  environment ResumeModelEnvironment
+  provider    ResumeModelProvider
+  modelName   String
+  url         String
+  secretRef   String
+  isActive    Boolean                @default(false)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([environment])
+}
+
+
 model Tag {
   id        Int      @id @default(autoincrement())
   name      String   @unique

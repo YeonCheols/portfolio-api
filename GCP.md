@@ -76,6 +76,7 @@ Free Tier는 크레딧과 별개로 매월 갱신된다. 이 서비스가 쓰는
 | `DATABASE_URL` | Prisma 런타임 연결 |
 | `DATABASE_DIRECT_URL` | Prisma 마이그레이션용 직접 연결 |
 | `JWT_SECRET` | 관리자 토큰 서명 |
+| `RESUME_MODEL_SETTING_TOKEN` | MCP의 활성 이력서 모델 설정 조회 전용 Bearer. 없으면 조회를 모두 거부한다 |
 | `RESEND_API_KEY` | 메일 발송 |
 | `MAIL_FROM` | 발신 주소. 없으면 코드의 기본값 |
 | `MAIL_TO` | 수신 주소. 없으면 코드의 기본값 |
