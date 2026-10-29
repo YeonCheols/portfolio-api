@@ -3,6 +3,7 @@ import { NotFoundException, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
 import { PrismaService } from "src/prisma/prisma.service";
+import { restoreJwtSecret } from "../auth/testing/admin-auth-test-app";
 import { AdminUserService } from "./user.service";
 
 jest.mock("bcryptjs");
@@ -26,7 +27,7 @@ describe("AdminUserService", () => {
   });
 
   afterAll(() => {
-    process.env.JWT_SECRET = originalSecret;
+    restoreJwtSecret(originalSecret);
   });
 
   beforeEach(async () => {
@@ -115,5 +116,26 @@ describe("AdminUserService", () => {
         expect.objectContaining({ sub: 1, email: user.email }),
       );
     });
+
+    it.each([
+      ["없으면", undefined],
+      ["비어 있으면", ""],
+      ["공백뿐이면", "   "],
+    ])(
+      "JWT_SECRET이 %s 토큰을 발급하지 않고 실패한다",
+      async (_label, secret) => {
+        restoreJwtSecret(secret);
+        prisma.adminUser.findUnique.mockResolvedValue(user);
+        compare.mockResolvedValue(true as never);
+
+        try {
+          await expect(
+            service.login({ email: user.email, password: "plain" }),
+          ).rejects.toThrow("JWT_SECRET");
+        } finally {
+          process.env.JWT_SECRET = "test-secret";
+        }
+      },
+    );
   });
 });

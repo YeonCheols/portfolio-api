@@ -11,6 +11,7 @@ import {
 } from "./dto";
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
+import { getAdminJwtSecret } from "../auth/jwt-secret";
 
 @Injectable()
 export class AdminUserService {
@@ -56,7 +57,7 @@ export class AdminUserService {
     });
     const token = jwt.sign(
       { sub: user.id, email: user.email },
-      process.env.JWT_SECRET || "secret",
+      getAdminJwtSecret(),
       { expiresIn: "1d" },
     );
 
