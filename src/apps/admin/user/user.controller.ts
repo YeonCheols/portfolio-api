@@ -24,6 +24,9 @@ import { AuthExceptionFilter } from "../auth/auth.exception.filter";
 export class AdminUserController {
   constructor(private readonly userService: AdminUserService) {}
 
+  @ApiBearerAuth("access-token")
+  @UseGuards(JwtAuthGuard)
+  @UseFilters(AuthExceptionFilter)
   @Post("join")
   async join(@Body() createUserDto: AdminCreateUserRequest) {
     const user = await this.userService.create(createUserDto);
@@ -53,6 +56,9 @@ export class AdminUserController {
     return { user };
   }
 
+  @ApiBearerAuth("access-token")
+  @UseGuards(JwtAuthGuard)
+  @UseFilters(AuthExceptionFilter)
   @Post("reset-password")
   async resetPassword(@Body() resetPasswordDto: AdminResetPasswordRequest) {
     const user = await this.userService.resetPassword(resetPasswordDto);

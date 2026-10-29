@@ -1,16 +1,45 @@
 import { PrismaService } from "src/prisma/prisma.service";
 import { JwtStrategy } from "./jwt.strategy";
+import { restoreJwtSecret } from "./testing/admin-auth-test-app";
 
 describe("JwtStrategy", () => {
+  const originalSecret = process.env.JWT_SECRET;
   const prisma = {
     adminUser: {
       findUnique: jest.fn(),
     },
   };
-  const strategy = new JwtStrategy(prisma as unknown as PrismaService);
+  let strategy: JwtStrategy;
+
+  beforeAll(() => {
+    process.env.JWT_SECRET = "test-secret";
+    strategy = new JwtStrategy(prisma as unknown as PrismaService);
+  });
+
+  afterAll(() => {
+    restoreJwtSecret(originalSecret);
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("constructor", () => {
+    it.each([
+      ["없으면", undefined],
+      ["비어 있으면", ""],
+      ["공백뿐이면", "   "],
+    ])("JWT_SECRET이 %s 생성에 실패한다", (_label, secret) => {
+      restoreJwtSecret(secret);
+
+      try {
+        expect(
+          () => new JwtStrategy(prisma as unknown as PrismaService),
+        ).toThrow("JWT_SECRET");
+      } finally {
+        process.env.JWT_SECRET = "test-secret";
+      }
+    });
   });
 
   describe("validate", () => {
