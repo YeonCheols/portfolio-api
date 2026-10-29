@@ -67,6 +67,7 @@ jobs:
             RESEND_API_KEY=RESEND_API_KEY:latest
             NODE_ENV=NODE_ENV:latest
             JWT_SECRET=JWT_SECRET:latest
+            RESUME_MODEL_SETTING_TOKEN=RESUME_MODEL_SETTING_TOKEN:latest
           flags: --min-instances=0 --memory=1Gi --cpu=2 --port=8080 --allow-unauthenticated --service-account=${{ env.SERVICE_ACCOUNT }} --startup-probe=httpGet.path=/health,httpGet.port=8080,timeoutSeconds=3,periodSeconds=5,failureThreshold=6
 
       - name: Show Output

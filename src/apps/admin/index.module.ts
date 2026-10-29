@@ -4,6 +4,7 @@ import { AdminProjectModule } from "./project/project.module";
 import { AdminUserModule } from "./user/user.module";
 import { AdminAuthModule } from "./auth/auth.module";
 import { AdminTagModule } from "./tag/tag.module";
+import { AdminResumeModelSettingModule } from "./resume-model-setting/resume-model-setting.module";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AdminTagModule } from "./tag/tag.module";
     AdminUserModule,
     AdminAuthModule,
     AdminTagModule,
+    AdminResumeModelSettingModule,
   ],
 })
 export class AdminModule {}
