@@ -29,8 +29,11 @@
     "postinstall": "prisma generate",
     "deploy": "vercel .",
     "prisma:merge": "node prisma/merge-schema.js",
-    "prisma:generate": "pnpm run prisma:merge && prisma generate",
-    "prisma:migrate": "pnpm run prisma:merge && prisma migrate dev",
+    "prisma:generate": "node prisma/merge-schema.js && prisma generate",
+    "prisma:migrate": "node prisma/merge-schema.js && prisma migrate dev",
+    "prisma:migrate:status": "node prisma/merge-schema.js && prisma migrate status",
+    "prisma:migrate:deploy": "node prisma/merge-schema.js && prisma migrate deploy",
+    "prisma:migrate:resolve": "node prisma/merge-schema.js && prisma migrate resolve",
     "fetch-schema": "NODE_TLS_REJECT_UNAUTHORIZED=0 npx swagger-typescript-api -p https://local.ycseng.com:4001/api-json -o ./docs -n api.ts --no-client"
   },
   "dependencies": {
