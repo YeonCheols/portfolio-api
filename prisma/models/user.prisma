@@ -3,13 +3,14 @@ enum UserIdentityProvider {
 }
 
 model User {
-  id         Int            @id @default(autoincrement())
-  email      String?
-  name       String?
-  imageUrl   String?
-  identities UserIdentity[]
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id           Int            @id @default(autoincrement())
+  email        String?
+  name         String?
+  imageUrl     String?
+  identities   UserIdentity[]
+  authHistories AuthHistory[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 model UserIdentity {
@@ -32,4 +33,47 @@ model AdminUser {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum AuthHistoryStatus {
+  pending
+  authenticated
+  failed
+  revoked
+}
+
+model AuthHistory {
+  id              String            @id @default(uuid()) @db.Uuid
+  clientId        String
+  userId          Int?
+  user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  redirectUri     String?
+  stateHash       String?           @unique
+  stateExpiresAt  DateTime?
+  stateConsumedAt DateTime?
+  audience        String?
+  scope           String?
+  status          AuthHistoryStatus @default(pending)
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  tokens          UserToken[]
+
+  @@index([userId, clientId, status])
+  @@index([expiresAt])
+}
+
+model UserToken {
+  id            String      @id @default(uuid()) @db.Uuid
+  authHistoryId String      @db.Uuid
+  authHistory   AuthHistory @relation(fields: [authHistoryId], references: [id], onDelete: Cascade)
+  tokenHash     String      @unique
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([authHistoryId, revokedAt])
+  @@index([expiresAt])
 }
