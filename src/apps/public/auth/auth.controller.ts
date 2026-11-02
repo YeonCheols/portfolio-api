@@ -3,9 +3,13 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
+  Redirect,
+  UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -24,6 +28,118 @@ export class AuthController {
   @ApiOperation({ summary: "공용 access token 서명 공개키 조회" })
   getJwks() {
     return this.service.getJwks();
+  }
+
+  @Post("register")
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: "공개 OAuth client 동적 등록" })
+  register(@Body() body?: unknown) {
+    return this.service.registerOAuthClient(body);
+  }
+
+  @Get("authorize")
+  @Redirect()
+  @ApiOperation({ summary: "OAuth authorization code 흐름 시작" })
+  async oauthAuthorize(@Query() query: Record<string, string>) {
+    const { authorizationUrl } = await this.service.startMcpOAuthAuthorization({
+      client_id: query.client_id ?? "",
+      redirect_uri: query.redirect_uri ?? "",
+      state: query.state ?? "",
+      code_challenge: query.code_challenge ?? "",
+      code_challenge_method: query.code_challenge_method ?? "",
+      resource: query.resource ?? "",
+      scope: query.scope ?? "",
+    });
+    return { url: authorizationUrl, statusCode: 302 };
+  }
+
+  @Get("github/callback")
+  @Redirect()
+  @ApiOperation({ summary: "GitHub 인증 결과를 MCP OAuth client로 전달" })
+  async oauthCallback(@Query() query: Record<string, string>) {
+    if (!query.state)
+      throw new BadRequestException("invalid_authorization_state");
+    const result = await this.service.completeMcpOAuthCallback(
+      query.code ?? "",
+      query.state,
+    );
+    const redirect = new URL(result.redirectUri);
+    if (result.code) redirect.searchParams.set("code", result.code);
+    if (result.error) redirect.searchParams.set("error", result.error);
+    redirect.searchParams.set("state", result.clientState);
+    redirect.searchParams.set("iss", result.issuer);
+    return { url: redirect.toString(), statusCode: 302 };
+  }
+
+  @Post("token")
+  @HttpCode(HttpStatus.OK)
+  @Header("Cache-Control", "no-store")
+  @Header("Pragma", "no-cache")
+  @ApiOperation({ summary: "OAuth authorization code 또는 refresh token 교환" })
+  async oauthToken(@Body() input?: unknown) {
+    const body = this.requireOAuthBody(input);
+    const grantType = body.grant_type;
+    if (grantType === "authorization_code") {
+      try {
+        return await this.service.exchangeMcpOAuthAuthorizationCode({
+          code: this.requireOAuthString(body, "code"),
+          client_id: this.requireOAuthString(body, "client_id"),
+          redirect_uri: this.requireOAuthString(body, "redirect_uri"),
+          code_verifier: this.requireOAuthString(body, "code_verifier"),
+          resource: this.requireOAuthString(body, "resource"),
+        });
+      } catch (error) {
+        this.rethrowOAuthTokenError(error);
+      }
+    }
+    if (grantType === "refresh_token") {
+      try {
+        return await this.service.refreshOAuthToken(
+          this.requireOAuthString(body, "client_id"),
+          this.requireOAuthString(body, "refresh_token"),
+        );
+      } catch (error) {
+        this.rethrowOAuthTokenError(error);
+      }
+    }
+    throw new BadRequestException({ error: "unsupported_grant_type" });
+  }
+
+  @Post("oauth/revoke")
+  @HttpCode(HttpStatus.OK)
+  @Header("Cache-Control", "no-store")
+  @Header("Pragma", "no-cache")
+  @ApiOperation({ summary: "OAuth refresh token 폐기" })
+  async oauthRevoke(@Body() input?: unknown) {
+    const body = this.requireOAuthBody(input);
+    try {
+      return await this.service.revokeOAuthToken(
+        this.requireOAuthString(body, "client_id"),
+        this.requireOAuthString(body, "token"),
+      );
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw new UnauthorizedException({ error: "invalid_client" });
+      }
+      throw error;
+    }
+  }
+
+  @Post("introspect")
+  @HttpCode(HttpStatus.OK)
+  @Header("Cache-Control", "no-store")
+  @Header("Pragma", "no-cache")
+  @UseGuards(AuthServiceTokenGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "MCP access token의 현재 유효성 조회" })
+  introspect(@Body() body?: ClientRequest & { token?: string }) {
+    if (body?.client_id !== "mcp") {
+      throw new BadRequestException({ error: "invalid_request" });
+    }
+    if (!body.token) {
+      throw new BadRequestException({ error: "invalid_request" });
+    }
+    return this.service.introspectMcpAccessToken(body.token);
   }
 
   @Post("authorize")
@@ -80,5 +196,37 @@ export class AuthController {
       );
     }
     return clientId;
+  }
+
+  private requireOAuthBody(input?: unknown): Record<string, unknown> {
+    if (!input || typeof input !== "object" || Array.isArray(input)) {
+      throw new BadRequestException({ error: "invalid_request" });
+    }
+    return input as Record<string, unknown>;
+  }
+
+  private requireOAuthString(
+    body: Record<string, unknown>,
+    key: string,
+  ): string {
+    const value = body[key];
+    if (typeof value !== "string" || !value) {
+      throw new BadRequestException({ error: "invalid_request" });
+    }
+    return value;
+  }
+
+  private rethrowOAuthTokenError(error: unknown): never {
+    if (!(error instanceof UnauthorizedException)) throw error;
+    const response = error.getResponse();
+    if (
+      typeof response === "object" &&
+      response !== null &&
+      "error" in response &&
+      response.error === "invalid_client"
+    ) {
+      throw new UnauthorizedException({ error: "invalid_client" });
+    }
+    throw new BadRequestException({ error: "invalid_grant" });
   }
 }
