@@ -16,27 +16,27 @@ datasource db {
 }
 
 model Profile {
-  id          Int      @id @default(autoincrement())
-  name       String @default("")
-  imageUrl   String
-  isActive   Boolean  @default(false)
-  order       Int      @default(autoincrement())
-  updatedAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  name      String   @default("")
+  imageUrl  String
+  isActive  Boolean  @default(false)
+  order     Int      @default(autoincrement())
+  updatedAt DateTime @default(now())
 
   @@index([order])
-} 
+}
 
 model ProjectTag {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   projectId Int
   tagId     Int
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
   @@unique([projectId, tagId])
   @@index([projectId])
   @@index([tagId])
-} 
+}
 
 model Project {
   id          Int      @id @default(autoincrement())
@@ -44,14 +44,14 @@ model Project {
   slug        String   @unique
   description String
   image       String
-  linkDemo   String?
-  linkGithub String?
+  linkDemo    String?
+  linkGithub  String?
   stacks      String
-  isShow     Boolean  @default(true)
-  updatedAt  DateTime @default(now())
+  isShow      Boolean  @default(true)
+  updatedAt   DateTime @default(now())
   content     String?  @db.Text
   order       Int      @default(autoincrement())
-  
+
   // ProjectTag와의 관계
   projectTags ProjectTag[]
 }
@@ -80,7 +80,6 @@ model ResumeModelSetting {
   @@index([environment])
 }
 
-
 model Tag {
   id        Int      @id @default(autoincrement())
   name      String   @unique
@@ -88,25 +87,24 @@ model Tag {
   color     String
   category  String
   updatedAt DateTime @default(now())
-  
+
   // ProjectTag와의 관계
   projectTags ProjectTag[]
 }
-
 
 enum UserIdentityProvider {
   github
 }
 
 model User {
-  id           Int            @id @default(autoincrement())
-  email        String?
-  name         String?
-  imageUrl     String?
-  identities   UserIdentity[]
+  id            Int            @id @default(autoincrement())
+  email         String?
+  name          String?
+  imageUrl      String?
+  identities    UserIdentity[]
   authHistories AuthHistory[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model UserIdentity {
@@ -139,25 +137,30 @@ enum AuthHistoryStatus {
 }
 
 model AuthHistory {
-  id              String            @id @default(uuid()) @db.Uuid
-  clientId        String
-  userId          Int?
-  user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  redirectUri     String?
-  stateHash       String?           @unique
-  stateExpiresAt  DateTime?
-  stateConsumedAt DateTime?
-  audience        String?
-  scope           String?
-  status          AuthHistoryStatus @default(pending)
-  expiresAt       DateTime
-  revokedAt       DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  tokens          UserToken[]
+  id               String            @id @default(uuid()) @db.Uuid
+  clientId         String
+  userId           Int?
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  redirectUri      String?
+  oauthClientId    String?
+  oauthRedirectUri String?
+  oauthState       String?
+  codeChallenge    String?
+  stateHash        String?           @unique
+  stateExpiresAt   DateTime?
+  stateConsumedAt  DateTime?
+  audience         String?
+  scope            String?
+  status           AuthHistoryStatus @default(pending)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tokens           UserToken[]
 
   @@index([userId, clientId, status])
   @@index([expiresAt])
+  @@index([oauthClientId, status, expiresAt])
 }
 
 model UserToken {

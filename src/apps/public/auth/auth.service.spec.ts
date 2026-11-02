@@ -1,6 +1,6 @@
-import { generateKeyPairSync } from "crypto";
+import { createHash, generateKeyPairSync } from "crypto";
 import { UnauthorizedException } from "@nestjs/common";
-import { decode, verify } from "jsonwebtoken";
+import { decode, sign as signJwt, verify } from "jsonwebtoken";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AuthService } from "./auth.service";
 
@@ -75,6 +75,443 @@ describe("AuthService", () => {
     expect(() =>
       service.validateServiceToken("mcp", "portfolio-service-secret"),
     ).toThrow(UnauthorizedException);
+  });
+
+  it("MCP OAuth 표준 metadata에서 portfolio-api endpoint를 제공한다", () => {
+    expect(service.getOAuthMetadata()).toMatchObject({
+      issuer: "https://api.example.com/auth",
+      authorization_endpoint: "https://api.example.com/auth/authorize",
+      token_endpoint: "https://api.example.com/auth/token",
+      registration_endpoint: "https://api.example.com/auth/register",
+      revocation_endpoint: "https://api.example.com/auth/oauth/revoke",
+      jwks_uri: "https://api.example.com/auth/.well-known/jwks.json",
+      code_challenge_methods_supported: ["S256"],
+      scopes_supported: ["resume:use"],
+    });
+  });
+
+  it("loopback redirect URI를 가진 공개 OAuth client를 등록한다", () => {
+    expect(
+      service.registerOAuthClient({
+        redirect_uris: ["http://127.0.0.1:43123/callback"],
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+        client_name: "MCP test client",
+      }),
+    ).toMatchObject({
+      client_id: expect.any(String),
+      redirect_uris: ["http://127.0.0.1:43123/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+      client_name: "MCP test client",
+    });
+  });
+
+  it("유효한 PKCE 요청을 저장하고 portfolio-api GitHub 로그인 URL을 만든다", async () => {
+    prisma.authHistory.create.mockResolvedValue({ id: "oauth-history" });
+    const client = service.registerOAuthClient({
+      redirect_uris: ["http://127.0.0.1:43123/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+    });
+
+    const result = await service.startMcpOAuthAuthorization({
+      client_id: client.client_id,
+      redirect_uri: "http://127.0.0.1:43123/callback",
+      state: "client-state-123",
+      code_challenge: "A".repeat(43),
+      code_challenge_method: "S256",
+      resource: "https://mcp.example.com",
+      scope: "resume:use",
+    });
+
+    const loginUrl = new URL(result.authorizationUrl);
+    expect(loginUrl.origin).toBe("https://github.com");
+    expect(loginUrl.pathname).toBe("/login/oauth/authorize");
+    expect(loginUrl.searchParams.get("redirect_uri")).toBe(
+      "https://mcp.example.com/github/callback",
+    );
+    expect(loginUrl.searchParams.get("state")).toEqual(expect.any(String));
+    expect(prisma.authHistory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          clientId: "mcp",
+          oauthClientId: client.client_id,
+          oauthRedirectUri: "http://127.0.0.1:43123/callback",
+          oauthState: "client-state-123",
+          codeChallenge: "A".repeat(43),
+          audience: "https://mcp.example.com",
+          scope: "resume:use",
+          status: "pending",
+        }),
+      }),
+    );
+  });
+
+  it("허용된 GitHub callback은 OAuth client state와 authorization code로 돌아간다", async () => {
+    const client = service.registerOAuthClient({
+      redirect_uris: ["http://127.0.0.1:43123/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+    });
+    const authorization = await service.startMcpOAuthAuthorization({
+      client_id: client.client_id,
+      redirect_uri: "http://127.0.0.1:43123/callback",
+      state: "client-state-123",
+      code_challenge: "A".repeat(43),
+      code_challenge_method: "S256",
+      resource: "https://mcp.example.com",
+      scope: "resume:use",
+    });
+    const githubState = new URL(
+      authorization.authorizationUrl,
+    ).searchParams.get("state");
+    if (!githubState) throw new Error("GitHub OAuth state missing");
+    prisma.authHistory.findUnique.mockResolvedValue({
+      id: "oauth-history",
+      clientId: "mcp",
+      userId: null,
+      redirectUri: process.env.MCP_GITHUB_REDIRECT_URI,
+      oauthClientId: client.client_id,
+      oauthRedirectUri: "http://127.0.0.1:43123/callback",
+      oauthState: "client-state-123",
+      codeChallenge: "A".repeat(43),
+      audience: "https://mcp.example.com",
+      scope: "resume:use",
+      stateConsumedAt: null,
+      stateExpiresAt: new Date(Date.now() + 60_000),
+      status: "pending",
+    });
+    prisma.authHistory.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    userIdentity.resolveGitHubUser.mockResolvedValue({ id: 42 });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ access_token: "github-access" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: 123, name: "User" }),
+      }) as unknown as typeof fetch;
+
+    const result = await service.completeMcpOAuthCallback(
+      "github-code",
+      githubState,
+    );
+
+    expect(result).toMatchObject({
+      redirectUri: "http://127.0.0.1:43123/callback",
+      clientState: "client-state-123",
+      code: githubState,
+      issuer: "https://api.example.com/auth",
+    });
+    expect(prisma.authHistory.findUnique).toHaveBeenCalledWith({
+      where: {
+        stateHash: createHash("sha256").update(githubState).digest("hex"),
+      },
+    });
+    expect(prisma.authHistory.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "oauth-history", userId: null }),
+        data: expect.objectContaining({ userId: 42 }),
+      }),
+    );
+  });
+
+  it("허용되지 않은 GitHub 사용자는 OAuth client에 access_denied로 돌아간다", async () => {
+    const client = service.registerOAuthClient({
+      redirect_uris: ["http://127.0.0.1:43123/callback"],
+    });
+    const authorization = await service.startMcpOAuthAuthorization({
+      client_id: client.client_id,
+      redirect_uri: "http://127.0.0.1:43123/callback",
+      state: "client-state-123",
+      code_challenge: "A".repeat(43),
+      code_challenge_method: "S256",
+      resource: "https://mcp.example.com",
+      scope: "resume:use",
+    });
+    const githubState = new URL(
+      authorization.authorizationUrl,
+    ).searchParams.get("state");
+    if (!githubState) throw new Error("GitHub OAuth state missing");
+    prisma.authHistory.findUnique.mockResolvedValue({
+      id: "oauth-history",
+      clientId: "mcp",
+      userId: null,
+      redirectUri: process.env.MCP_GITHUB_REDIRECT_URI,
+      oauthClientId: client.client_id,
+      oauthRedirectUri: "http://127.0.0.1:43123/callback",
+      oauthState: "client-state-123",
+      codeChallenge: "A".repeat(43),
+      audience: "https://mcp.example.com",
+      scope: "resume:use",
+      stateConsumedAt: null,
+      stateExpiresAt: new Date(Date.now() + 60_000),
+      status: "pending",
+    });
+    prisma.authHistory.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ access_token: "github-access" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: 999, name: "Unlisted user" }),
+      }) as unknown as typeof fetch;
+
+    const result = await service.completeMcpOAuthCallback(
+      "github-code",
+      githubState,
+    );
+
+    expect(result).toMatchObject({
+      redirectUri: "http://127.0.0.1:43123/callback",
+      clientState: "client-state-123",
+      error: "access_denied",
+      issuer: "https://api.example.com/auth",
+    });
+    expect(userIdentity.resolveGitHubUser).not.toHaveBeenCalled();
+  });
+
+  it("유효한 OAuth code와 PKCE verifier로 portfolio-api 토큰을 발급한다", async () => {
+    const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    process.env.AUTH_PRIVATE_KEY = keys.privateKey
+      .export({ type: "pkcs8", format: "pem" })
+      .toString();
+    const client = service.registerOAuthClient({
+      redirect_uris: ["http://127.0.0.1:43123/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+    });
+    const verifier = "v".repeat(43);
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    prisma.authHistory.findUnique.mockResolvedValue({
+      id: "oauth-history",
+      clientId: "mcp",
+      userId: 42,
+      oauthClientId: client.client_id,
+      oauthRedirectUri: "http://127.0.0.1:43123/callback",
+      codeChallenge: challenge,
+      stateConsumedAt: new Date(),
+      stateExpiresAt: new Date(Date.now() + 60_000),
+      audience: "https://mcp.example.com",
+      scope: "resume:use",
+      revokedAt: null,
+      status: "pending",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prisma.authHistory.updateMany.mockResolvedValue({ count: 1 });
+    prisma.userToken.create.mockResolvedValue({ id: "refresh-row" });
+
+    const tokens = await service.exchangeMcpOAuthAuthorizationCode({
+      code: "oauth-code",
+      client_id: client.client_id,
+      redirect_uri: "http://127.0.0.1:43123/callback",
+      code_verifier: verifier,
+      resource: "https://mcp.example.com",
+    });
+
+    const claims = verify(
+      tokens.access_token,
+      keys.publicKey.export({ type: "spki", format: "pem" }).toString(),
+      {
+        algorithms: ["RS256"],
+        issuer: process.env.AUTH_ISSUER,
+        audience: process.env.MCP_RESOURCE_URL,
+      },
+    ) as { scope: string; sub: string };
+    if (!tokens.refresh_token) throw new Error("refresh token missing");
+    expect(claims).toMatchObject({ sub: "42", scope: "resume:use" });
+    expect(tokens).toMatchObject({
+      token_type: "Bearer",
+      expires_in: 3600,
+      scope: "resume:use",
+      refresh_token: expect.any(String),
+    });
+    expect(prisma.userToken.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          authHistoryId: "oauth-history",
+          tokenHash: expect.not.stringContaining(tokens.refresh_token),
+        }),
+      }),
+    );
+  });
+
+  it("유효한 MCP access token과 활성 세션만 introspection에서 active로 반환한다", async () => {
+    const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const privateKey = keys.privateKey
+      .export({ type: "pkcs8", format: "pem" })
+      .toString();
+    process.env.AUTH_PRIVATE_KEY = privateKey;
+    const token = signJwt(
+      { scope: "resume:use", sid: "mcp-session" },
+      privateKey,
+      {
+        algorithm: "RS256",
+        subject: "42",
+        audience: "https://mcp.example.com",
+        issuer: "https://api.example.com/auth",
+        expiresIn: 3600,
+      },
+    );
+    prisma.authHistory.findUnique.mockResolvedValue({
+      id: "mcp-session",
+      clientId: "mcp",
+      userId: 42,
+      audience: "https://mcp.example.com",
+      scope: "resume:use",
+      status: "authenticated",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const result = await service.introspectMcpAccessToken(token);
+
+    expect(result).toMatchObject({
+      active: true,
+      client_id: "mcp",
+      sub: "42",
+      aud: "https://mcp.example.com",
+      iss: "https://api.example.com/auth",
+      scope: "resume:use",
+    });
+    expect(prisma.authHistory.findUnique).toHaveBeenCalledWith({
+      where: { id: "mcp-session" },
+    });
+  });
+
+  it("폐기된 MCP 세션의 유효한 JWT는 introspection에서 inactive로 반환한다", async () => {
+    const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const privateKey = keys.privateKey
+      .export({ type: "pkcs8", format: "pem" })
+      .toString();
+    process.env.AUTH_PRIVATE_KEY = privateKey;
+    const token = signJwt(
+      { scope: "resume:use", sid: "revoked-session" },
+      privateKey,
+      {
+        algorithm: "RS256",
+        subject: "42",
+        audience: "https://mcp.example.com",
+        issuer: "https://api.example.com/auth",
+        expiresIn: 3600,
+      },
+    );
+    prisma.authHistory.findUnique.mockResolvedValue({
+      id: "revoked-session",
+      clientId: "mcp",
+      userId: 42,
+      audience: "https://mcp.example.com",
+      scope: "resume:use",
+      status: "revoked",
+      revokedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(service.introspectMcpAccessToken(token)).resolves.toEqual({
+      active: false,
+    });
+  });
+
+  it("잘못된 audience의 JWT는 DB 조회 없이 introspection에서 inactive로 반환한다", async () => {
+    const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const privateKey = keys.privateKey
+      .export({ type: "pkcs8", format: "pem" })
+      .toString();
+    process.env.AUTH_PRIVATE_KEY = privateKey;
+    const token = signJwt(
+      { scope: "resume:use", sid: "wrong-audience-session" },
+      privateKey,
+      {
+        algorithm: "RS256",
+        subject: "42",
+        audience: "https://other.example.com",
+        issuer: "https://api.example.com/auth",
+        expiresIn: 3600,
+      },
+    );
+
+    await expect(service.introspectMcpAccessToken(token)).resolves.toEqual({
+      active: false,
+    });
+    expect(prisma.authHistory.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("활성 표시가 남아 있어도 만료된 AuthHistory 세션은 inactive로 반환한다", async () => {
+    const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const privateKey = keys.privateKey
+      .export({ type: "pkcs8", format: "pem" })
+      .toString();
+    process.env.AUTH_PRIVATE_KEY = privateKey;
+    const token = signJwt(
+      { scope: "resume:use", sid: "expired-session" },
+      privateKey,
+      {
+        algorithm: "RS256",
+        subject: "42",
+        audience: "https://mcp.example.com",
+        issuer: "https://api.example.com/auth",
+        expiresIn: 3600,
+      },
+    );
+    prisma.authHistory.findUnique.mockResolvedValue({
+      id: "expired-session",
+      clientId: "mcp",
+      userId: 42,
+      audience: "https://mcp.example.com",
+      scope: "resume:use",
+      status: "authenticated",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() - 1),
+    });
+
+    await expect(service.introspectMcpAccessToken(token)).resolves.toEqual({
+      active: false,
+    });
+  });
+
+  it("PKCE verifier가 다르면 OAuth authorization code를 소비하지 않는다", async () => {
+    const client = service.registerOAuthClient({
+      redirect_uris: ["http://127.0.0.1:43123/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+    });
+    prisma.authHistory.findUnique.mockResolvedValue({
+      id: "oauth-history",
+      clientId: "mcp",
+      userId: 42,
+      oauthClientId: client.client_id,
+      oauthRedirectUri: "http://127.0.0.1:43123/callback",
+      codeChallenge: createHash("sha256")
+        .update("e".repeat(43))
+        .digest("base64url"),
+      stateConsumedAt: new Date(),
+      stateExpiresAt: new Date(Date.now() + 60_000),
+      audience: "https://mcp.example.com",
+      scope: "resume:use",
+      revokedAt: null,
+      status: "pending",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(
+      service.exchangeMcpOAuthAuthorizationCode({
+        code: "oauth-code",
+        client_id: client.client_id,
+        redirect_uri: "http://127.0.0.1:43123/callback",
+        code_verifier: "w".repeat(43),
+        resource: "https://mcp.example.com",
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(prisma.authHistory.updateMany).not.toHaveBeenCalled();
+    expect(prisma.userToken.create).not.toHaveBeenCalled();
   });
 
   it("AuthHistory에 OAuth 대기 상태와 앱 정보를 기록한다", async () => {

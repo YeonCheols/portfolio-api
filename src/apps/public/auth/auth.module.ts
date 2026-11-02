@@ -4,10 +4,11 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { AuthController } from "./auth.controller";
 import { AuthServiceTokenGuard } from "./auth-service-token.guard";
 import { AuthService } from "./auth.service";
+import { OAuthMetadataController } from "./oauth-metadata.controller";
 
 @Module({
   imports: [IdentityModule],
-  controllers: [AuthController],
+  controllers: [AuthController, OAuthMetadataController],
   providers: [AuthService, AuthServiceTokenGuard, PrismaService],
 })
 export class AuthModule {}

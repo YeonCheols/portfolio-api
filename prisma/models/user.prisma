@@ -48,6 +48,10 @@ model AuthHistory {
   userId          Int?
   user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   redirectUri     String?
+  oauthClientId   String?
+  oauthRedirectUri String?
+  oauthState      String?
+  codeChallenge   String?
   stateHash       String?           @unique
   stateExpiresAt  DateTime?
   stateConsumedAt DateTime?
@@ -62,6 +66,7 @@ model AuthHistory {
 
   @@index([userId, clientId, status])
   @@index([expiresAt])
+  @@index([oauthClientId, status, expiresAt])
 }
 
 model UserToken {
