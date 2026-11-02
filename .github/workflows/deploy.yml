@@ -68,6 +68,15 @@ jobs:
             NODE_ENV=NODE_ENV:latest
             JWT_SECRET=JWT_SECRET:latest
             RESUME_MODEL_SETTING_TOKEN=RESUME_MODEL_SETTING_TOKEN:latest
+            AUTH_PRIVATE_KEY=MCP_OAUTH_SIGNING_PRIVATE_KEY:latest
+            GITHUB_OAUTH_CLIENT_SECRET=GITHUB_OAUTH_CLIENT_SECRET:latest
+            MCP_AUTH_SERVICE_TOKEN=MCP_AUTH_TOKEN:latest
+          env_vars: |-
+            AUTH_ISSUER=https://api.ycseng.com/auth
+            GITHUB_OAUTH_CLIENT_ID=${{ vars.MCP_GITHUB_OAUTH_CLIENT_ID }}
+            MCP_GITHUB_REDIRECT_URI=${{ vars.MCP_GITHUB_REDIRECT_URI }}
+            MCP_AUTHORIZED_GITHUB_USER_IDS=${{ vars.MCP_AUTHORIZED_GITHUB_USER_IDS }}
+            MCP_RESOURCE_URL=${{ vars.MCP_PUBLIC_URL }}
           flags: --min-instances=0 --memory=1Gi --cpu=2 --port=8080 --allow-unauthenticated --service-account=${{ env.SERVICE_ACCOUNT }} --startup-probe=httpGet.path=/health,httpGet.port=8080,timeoutSeconds=3,periodSeconds=5,failureThreshold=6
 
       - name: Show Output
