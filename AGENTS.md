@@ -49,7 +49,10 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 | e2e 테스트 | `pnpm test:e2e` |
 | 통합 테스트 | `pnpm test:integration` |
 | Prisma 스키마 병합+생성 | `pnpm prisma:generate` |
-| 마이그레이션 | `pnpm prisma:migrate` |
+| 개발 migration 생성 | `pnpm prisma:migrate --name <migration_name>` |
+| migration 상태 확인 | `pnpm prisma:migrate:status` |
+| 대상 DB migration 적용 | `pnpm prisma:migrate:deploy` |
+| 수동 반영 이력 정합화 | `pnpm prisma:migrate:resolve --applied <migration_name>` |
 
 ## 코딩 컨벤션
 
@@ -59,7 +62,10 @@ test/                       # e2e 테스트 (*.e2e-spec.ts)
 - DTO는 `dto/index.ts`에서 re-export
 - 검증은 `class-validator`, 문서화는 `@nestjs/swagger` 데코레이터 사용
 - 서비스는 `PrismaService`를 주입받아 사용, 없는 리소스는 `NotFoundException` 등 Nest 내장 예외로 처리
-- Prisma 스키마 수정 시 `prisma/` 분할 파일을 수정한 뒤 `pnpm prisma:generate`
+- Prisma 스키마를 변경하거나 새 모델을 추가할 때는 `prisma/models/*.prisma`를 수정하고 `pnpm prisma:migrate --name <migration_name>`으로 대응 migration을 생성해야 합니다. `prisma/schema.prisma`는 병합 산출물이므로 직접 수정하지 않으며, 스키마 변경은 migration SQL과 함께 커밋해야 합니다
+- Prisma CLI는 대상 DB의 `_prisma_migrations`에 적용 이력을 자동 기록하므로 이 테이블을 SQL로 직접 수정하지 않습니다. Supabase SQL Editor 등에서 migration SQL을 수동 적용한 경우에는 실제 스키마와 migration 결과가 일치하는지 확인한 뒤 `pnpm prisma:migrate:resolve --applied <migration_name>`으로 이력을 정합화합니다
+- 대상 DB의 migration 상태는 `pnpm prisma:migrate:status`로 확인하고, 커밋된 migration 적용은 `pnpm prisma:migrate:deploy`로 수행합니다. 이 저장소는 Supabase CLI migration history 대신 Prisma migration history를 사용합니다
+- Prisma 스키마 변경 후에는 `pnpm prisma:generate`와 관련 스키마 테스트를 실행합니다
 
 ## 안전 규칙
 
