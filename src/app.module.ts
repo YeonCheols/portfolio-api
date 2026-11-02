@@ -5,11 +5,12 @@ import { AppService } from "./app.service";
 import { PrismaModule } from "./prisma/prisma.module";
 import { PublicModule } from "./apps/public/index.module";
 import { AdminModule } from "./apps/admin/index.module";
+import { McpModule } from "./apps/mcp/index.module";
 import { HealthModule } from "./health/health.module";
 import { PrismaErrorFilter } from "../utils/error";
 
 @Module({
-  imports: [PrismaModule, HealthModule, PublicModule, AdminModule],
+  imports: [PrismaModule, HealthModule, PublicModule, AdminModule, McpModule],
   controllers: [AppController],
   providers: [
     AppService,
