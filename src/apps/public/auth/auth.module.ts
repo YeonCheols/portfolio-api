@@ -10,5 +10,6 @@ import { OAuthMetadataController } from "./oauth-metadata.controller";
   imports: [IdentityModule],
   controllers: [AuthController, OAuthMetadataController],
   providers: [AuthService, AuthServiceTokenGuard, PrismaService],
+  exports: [AuthService],
 })
 export class AuthModule {}

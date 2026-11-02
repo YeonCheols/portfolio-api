@@ -9,9 +9,10 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOkResponse, ApiOperation } from "@nestjs/swagger";
-import { AdminAuthController } from "../auth/auth.controller";
+import { AdminOrMcpServiceGuard } from "../auth/admin-or-mcp-service.guard";
 import {
   AdminResumeModelSettingCreateRequest,
   AdminResumeModelSettingResponse,
@@ -19,12 +20,12 @@ import {
 } from "./dto";
 import { AdminResumeModelSettingService } from "./resume-model-setting.service";
 
+// AdminAuthController를 상속하면 JwtAuthGuard가 함께 실행되어(AND) 서비스 토큰이 거절된다
 @ApiBearerAuth("access-token")
+@UseGuards(AdminOrMcpServiceGuard)
 @Controller("admin/resume-model-setting")
-export class AdminResumeModelSettingController extends AdminAuthController {
-  constructor(private readonly service: AdminResumeModelSettingService) {
-    super();
-  }
+export class AdminResumeModelSettingController {
+  constructor(private readonly service: AdminResumeModelSettingService) {}
 
   @ApiOperation({ summary: "이력서 모델 설정 목록" })
   @ApiOkResponse({ type: [AdminResumeModelSettingResponse] })

@@ -1,6 +1,7 @@
-import { INestApplication } from "@nestjs/common";
+import { INestApplication, UnauthorizedException } from "@nestjs/common";
 import * as request from "supertest";
 import { App } from "supertest/types";
+import { AuthService } from "src/apps/public/auth/auth.service";
 import {
   createAdminAuthTestApp,
   restoreJwtSecret,
@@ -28,11 +29,18 @@ describe("AdminResumeModelSettingController", () => {
     secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
   };
   const auth = () => ({ Authorization: `Bearer ${signTestAdminToken()}` });
+  const serviceAuth = () => ({ Authorization: "Bearer service-token" });
+  const authService = {
+    validateServiceToken: jest.fn((_clientId: string, token?: string) => {
+      if (token !== "service-token") throw new UnauthorizedException();
+    }),
+  };
 
   beforeAll(async () => {
     process.env.JWT_SECRET = TEST_JWT_SECRET;
     app = await createAdminAuthTestApp(AdminResumeModelSettingController, [
       { provide: AdminResumeModelSettingService, useValue: service },
+      { provide: AuthService, useValue: authService },
     ]);
   });
 
@@ -65,6 +73,20 @@ describe("AdminResumeModelSettingController", () => {
       .set(auth())
       .expect(200)
       .expect([{ id: 1, ...body, isActive: true }]);
+  });
+
+  it("MCP 서비스 토큰으로도 목록을 조회할 수 있다", async () => {
+    service.findAll.mockResolvedValue([{ id: 1, ...body, isActive: true }]);
+
+    await request(app.getHttpServer())
+      .get("/admin/resume-model-setting")
+      .set(serviceAuth())
+      .expect(200)
+      .expect([{ id: 1, ...body, isActive: true }]);
+    expect(authService.validateServiceToken).toHaveBeenCalledWith(
+      "mcp",
+      "service-token",
+    );
   });
 
   it("관리자 토큰으로 수정하면 숫자 id와 본문을 서비스에 넘긴다", async () => {
@@ -130,5 +152,46 @@ describe("AdminResumeModelSettingController", () => {
         );
       },
     );
+  });
+
+  it("토큰이 없거나 서비스 토큰·JWT가 모두 틀리면 모든 경로가 401이고 서비스를 호출하지 않는다", async () => {
+    const server = app.getHttpServer();
+    const attempts = [
+      {},
+      { Authorization: "Bearer wrong-token" },
+      { Authorization: `Bearer ${signTestAdminToken("another-secret")}` },
+      { Authorization: "Basic service-token" },
+    ];
+
+    for (const headers of attempts) {
+      await request(server)
+        .get("/admin/resume-model-setting")
+        .set(headers)
+        .expect(401);
+      await request(server)
+        .post("/admin/resume-model-setting")
+        .set(headers)
+        .send(body)
+        .expect(401);
+      await request(server)
+        .put("/admin/resume-model-setting/1")
+        .set(headers)
+        .send(body)
+        .expect(401);
+      await request(server)
+        .post("/admin/resume-model-setting/1/activate")
+        .set(headers)
+        .expect(401);
+      await request(server)
+        .delete("/admin/resume-model-setting/1")
+        .set(headers)
+        .expect(401);
+    }
+
+    expect(service.findAll).not.toHaveBeenCalled();
+    expect(service.create).not.toHaveBeenCalled();
+    expect(service.update).not.toHaveBeenCalled();
+    expect(service.activate).not.toHaveBeenCalled();
+    expect(service.remove).not.toHaveBeenCalled();
   });
 });
