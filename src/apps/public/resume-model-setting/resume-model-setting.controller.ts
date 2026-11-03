@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Header, Query, UseGuards } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiQuery } from "@nestjs/swagger";
 import { ResumeModelEnvironment } from "@prisma/client";
 import { ResumeModelSettingActiveResponse } from "./dto";
@@ -15,6 +15,7 @@ export class ResumeModelSettingController {
   @ApiQuery({ name: "environment", enum: ResumeModelEnvironment })
   @ApiOkResponse({ type: ResumeModelSettingActiveResponse })
   @UseGuards(ResumeModelSettingTokenGuard)
+  @Header("Cache-Control", "no-store")
   @Get("active")
   findActive(@Query("environment") environment: unknown) {
     return this.service.findActive(environment);

@@ -16,8 +16,10 @@ export class AdminResumeModelSettingCreateRequest {
   url: string;
 
   @ApiProperty({
-    description: "Secret Manager 시크릿 이름. 토큰 값은 넣지 않는다",
-    example: "RESUME_MODEL_TOKEN_OPENROUTER",
+    description:
+      "모델 공급자가 발급한 실제 API 키입니다. 응답 목록에는 반환하지 않습니다.",
+    writeOnly: true,
+    maxLength: 4096,
   })
-  secretRef: string;
+  apiKey: string;
 }

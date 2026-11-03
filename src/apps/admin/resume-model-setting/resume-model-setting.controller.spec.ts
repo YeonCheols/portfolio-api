@@ -25,7 +25,14 @@ describe("AdminResumeModelSettingController", () => {
     provider: "openrouter",
     modelName: "anthropic/claude-sonnet-5.5",
     url: "https://openrouter.ai/api/v1/chat/completions",
-    secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
+    apiKey: "fake-provider-api-key",
+  };
+  const visible = {
+    environment: body.environment,
+    provider: body.provider,
+    modelName: body.modelName,
+    url: body.url,
+    hasApiKey: true,
   };
   const auth = () => ({ Authorization: `Bearer ${signTestAdminToken()}` });
 
@@ -46,25 +53,25 @@ describe("AdminResumeModelSettingController", () => {
   });
 
   it("관리자 토큰으로 생성하면 201과 저장한 설정을 반환한다", async () => {
-    service.create.mockResolvedValue({ id: 1, ...body, isActive: false });
+    service.create.mockResolvedValue({ id: 1, ...visible, isActive: false });
 
     await request(app.getHttpServer())
       .post("/admin/resume-model-setting")
       .set(auth())
       .send(body)
       .expect(201)
-      .expect({ id: 1, ...body, isActive: false });
+      .expect({ id: 1, ...visible, isActive: false });
     expect(service.create).toHaveBeenCalledWith(body);
   });
 
   it("관리자 토큰으로 목록을 조회하면 서비스 결과를 반환한다", async () => {
-    service.findAll.mockResolvedValue([{ id: 1, ...body, isActive: true }]);
+    service.findAll.mockResolvedValue([{ id: 1, ...visible, isActive: true }]);
 
     await request(app.getHttpServer())
       .get("/admin/resume-model-setting")
       .set(auth())
       .expect(200)
-      .expect([{ id: 1, ...body, isActive: true }]);
+      .expect([{ id: 1, ...visible, isActive: true }]);
   });
 
   it("관리자 토큰으로 수정하면 숫자 id와 본문을 서비스에 넘긴다", async () => {

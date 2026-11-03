@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { ResumeModelEnvironment } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -21,8 +22,8 @@ export class ResumeModelSettingService {
     }
     const active = await this.prisma.resumeModelSetting.findFirst({
       where: { environment, isActive: true },
-      // 토큰은 저장하지 않지만 MCP 계약 밖 필드도 응답에 섞이지 않게 DB 조회에서 제한한다
-      select: { provider: true, modelName: true, url: true, secretRef: true },
+      // 실제 모델 키는 이 보호된 조회에서만 반환한다.
+      select: { provider: true, modelName: true, url: true, apiKey: true },
     });
     // MCP가 엉뚱한 모델로 생성하지 않도록 다른 환경이나 기본값으로 대체하지 않는다
     if (!active) {
@@ -30,6 +31,15 @@ export class ResumeModelSettingService {
         `${environment} 환경의 활성 모델 설정이 없습니다.`,
       );
     }
-    return active;
+    if (!active.apiKey?.trim())
+      throw new ServiceUnavailableException(
+        "활성 모델 설정에 API 키가 등록되지 않았습니다.",
+      );
+    return {
+      provider: active.provider,
+      modelName: active.modelName,
+      url: active.url,
+      apiKey: active.apiKey,
+    };
   }
 }

@@ -72,7 +72,9 @@ model ResumeModelSetting {
   provider    ResumeModelProvider
   modelName   String
   url         String
-  secretRef   String
+  // 이관 전 참조명은 보존하지만 런타임에서는 사용하지 않는다
+  secretRef   String?
+  apiKey      String?
   isActive    Boolean                @default(false)
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
