@@ -70,14 +70,24 @@ describe("AdminResumeModelSettingService", () => {
     await expect(service.create(input)).rejects.not.toThrow(input.apiKey);
   });
 
-  it("목록은 환경별 최근 순서로 조회하고 실제 키와 이전 참조를 제거한다", async () => {
+  it("목록은 환경별 최근 순서로 조회하고 활성 여부와 관계없이 실제 키를 포함하되 이전 참조는 제거한다", async () => {
     prisma.resumeModelSetting.findMany.mockResolvedValue([
       row,
       { ...row, id: 2, apiKey: null },
     ]);
     const rows = await service.findAll();
-    publicResult(rows[0]);
-    expect(rows[1].hasApiKey).toBe(false);
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        id: 1,
+        modelName: input.modelName,
+        hasApiKey: true,
+        apiKey: input.apiKey,
+      }),
+    );
+    expect(rows[0]).not.toHaveProperty("secretRef");
+    expect(rows[1]).toEqual(
+      expect.objectContaining({ hasApiKey: false, apiKey: null }),
+    );
     expect(prisma.resumeModelSetting.findMany).toHaveBeenCalledWith({
       orderBy: [{ environment: "asc" }, { updatedAt: "desc" }],
     });

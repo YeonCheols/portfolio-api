@@ -8,7 +8,7 @@ import { Prisma, type ResumeModelSetting } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { parseResumeModelSettingInput } from "./resume-model-setting.policy";
 
-// 관리 화면에는 실제 키를 반환하지 않는다. 키는 인증된 활성 설정 조회에서만 제공한다.
+// 생성·수정·활성화·삭제 응답에는 실제 키를 반환하지 않는다. 키는 목록과 활성 설정 조회에서만 제공한다.
 const metadata = (row: ResumeModelSetting) => ({
   id: row.id,
   environment: row.environment,
@@ -39,7 +39,8 @@ export class AdminResumeModelSettingService {
     const rows = await this.prisma.resumeModelSetting.findMany({
       orderBy: [{ environment: "asc" }, { updatedAt: "desc" }],
     });
-    return rows.map(metadata);
+    // 연결 테스트가 비활성 설정도 호출할 수 있도록 목록에는 실제 키를 포함한다
+    return rows.map((row) => ({ ...metadata(row), apiKey: row.apiKey }));
   }
 
   async update(id: number, body: unknown) {
