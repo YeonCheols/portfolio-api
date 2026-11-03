@@ -71,6 +71,7 @@ describe("AdminResumeModelSettingController", () => {
       .get("/admin/resume-model-setting")
       .set(auth())
       .expect(200)
+      .expect("Cache-Control", "no-store")
       .expect([{ id: 1, ...visible, isActive: true }]);
   });
 
