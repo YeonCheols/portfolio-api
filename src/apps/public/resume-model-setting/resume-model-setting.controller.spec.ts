@@ -14,7 +14,7 @@ describe("ResumeModelSettingController", () => {
     provider: "openrouter",
     modelName: "anthropic/claude-sonnet-5.5",
     url: "https://openrouter.ai/api/v1/chat/completions",
-    secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
+    apiKey: "fake-provider-api-key",
   };
 
   beforeAll(async () => {
@@ -54,10 +54,11 @@ describe("ResumeModelSettingController", () => {
 
     const body = res.body as Record<string, unknown>;
     expect(body).toEqual(active);
+    expect(res.headers["cache-control"]).toBe("no-store");
     expect(Object.keys(body).sort()).toEqual([
+      "apiKey",
       "modelName",
       "provider",
-      "secretRef",
       "url",
     ]);
     expect(service.findActive).toHaveBeenCalledWith("production");

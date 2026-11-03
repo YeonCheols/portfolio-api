@@ -15,7 +15,7 @@ describe("이력서 모델 설정 테스트 DB 통합", () => {
     provider: "openrouter",
     modelName: "anthropic/claude-sonnet-5.5",
     url: "https://openrouter.ai/api/v1/chat/completions",
-    secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
+    apiKey: "fake-provider-api-key",
   } as const;
 
   beforeAll(async () => {
@@ -102,8 +102,14 @@ describe("이력서 모델 설정 테스트 DB 통합", () => {
         ...setting,
         environment: "production",
         modelName: "openai/gpt-5",
+        apiKey: "fake-second-provider-api-key",
       })
       .expect(201);
+
+    expect(first.body.hasApiKey).toBe(true);
+    expect(first.body).not.toHaveProperty("apiKey");
+    expect(first.body).not.toHaveProperty("secretRef");
+    expect(second.body).not.toHaveProperty("apiKey");
 
     await request(server)
       .get("/resume-model-setting/active?environment=production")
@@ -118,6 +124,7 @@ describe("이력서 모델 설정 테스트 DB 통합", () => {
       .get("/resume-model-setting/active?environment=production")
       .set(read)
       .expect(200)
+      .expect("Cache-Control", "no-store")
       .expect(setting);
 
     await request(server)
@@ -128,7 +135,11 @@ describe("이력서 모델 설정 테스트 DB 통합", () => {
       .get("/resume-model-setting/active?environment=production")
       .set(read)
       .expect(200)
-      .expect({ ...setting, modelName: "openai/gpt-5" });
+      .expect({
+        ...setting,
+        modelName: "openai/gpt-5",
+        apiKey: "fake-second-provider-api-key",
+      });
 
     await expect(
       prisma.resumeModelSetting.count({

@@ -27,7 +27,14 @@ describe("McpResumeModelSettingController", () => {
     provider: "openrouter",
     modelName: "anthropic/claude-sonnet-5.5",
     url: "https://openrouter.ai/api/v1/chat/completions",
-    secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
+    apiKey: "fake-provider-api-key",
+  };
+  const visible = {
+    environment: body.environment,
+    provider: body.provider,
+    modelName: body.modelName,
+    url: body.url,
+    hasApiKey: true,
   };
 
   beforeAll(async () => {
@@ -52,13 +59,13 @@ describe("McpResumeModelSettingController", () => {
   });
 
   it("서비스 토큰으로 목록을 조회하면 설정 서비스 결과를 반환한다", async () => {
-    service.findAll.mockResolvedValue([{ id: 1, ...body, isActive: true }]);
+    service.findAll.mockResolvedValue([{ id: 1, ...visible, isActive: true }]);
 
     await request(app.getHttpServer())
       .get("/service/resume-model-setting")
       .set(auth())
       .expect(200)
-      .expect([{ id: 1, ...body, isActive: true }]);
+      .expect([{ id: 1, ...visible, isActive: true }]);
     expect(authService.validateServiceToken).toHaveBeenCalledWith(
       "mcp",
       "service-token",
@@ -66,48 +73,48 @@ describe("McpResumeModelSettingController", () => {
   });
 
   it("서비스 토큰으로 생성하면 201과 저장한 설정을 반환한다", async () => {
-    service.create.mockResolvedValue({ id: 1, ...body, isActive: false });
+    service.create.mockResolvedValue({ id: 1, ...visible, isActive: false });
 
     await request(app.getHttpServer())
       .post("/service/resume-model-setting")
       .set(auth())
       .send(body)
       .expect(201)
-      .expect({ id: 1, ...body, isActive: false });
+      .expect({ id: 1, ...visible, isActive: false });
     expect(service.create).toHaveBeenCalledWith(body);
   });
 
   it("서비스 토큰으로 수정하면 id와 본문을 서비스에 전달한다", async () => {
-    service.update.mockResolvedValue({ id: 3, ...body, isActive: false });
+    service.update.mockResolvedValue({ id: 3, ...visible, isActive: false });
 
     await request(app.getHttpServer())
       .put("/service/resume-model-setting/3")
       .set(auth())
       .send(body)
       .expect(200)
-      .expect({ id: 3, ...body, isActive: false });
+      .expect({ id: 3, ...visible, isActive: false });
     expect(service.update).toHaveBeenCalledWith(3, body);
   });
 
   it("서비스 토큰으로 활성화하면 200과 활성화된 설정을 반환한다", async () => {
-    service.activate.mockResolvedValue({ id: 3, ...body, isActive: true });
+    service.activate.mockResolvedValue({ id: 3, ...visible, isActive: true });
 
     await request(app.getHttpServer())
       .post("/service/resume-model-setting/3/activate")
       .set(auth())
       .expect(200)
-      .expect({ id: 3, ...body, isActive: true });
+      .expect({ id: 3, ...visible, isActive: true });
     expect(service.activate).toHaveBeenCalledWith(3);
   });
 
   it("서비스 토큰으로 삭제하면 삭제한 설정을 반환한다", async () => {
-    service.remove.mockResolvedValue({ id: 3, ...body, isActive: false });
+    service.remove.mockResolvedValue({ id: 3, ...visible, isActive: false });
 
     await request(app.getHttpServer())
       .delete("/service/resume-model-setting/3")
       .set(auth())
       .expect(200)
-      .expect({ id: 3, ...body, isActive: false });
+      .expect({ id: 3, ...visible, isActive: false });
     expect(service.remove).toHaveBeenCalledWith(3);
   });
 

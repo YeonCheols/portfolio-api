@@ -7,8 +7,19 @@ describe("parseResumeModelSettingInput", () => {
     provider: "openrouter",
     modelName: "anthropic/claude-sonnet-5.5",
     url: "https://openrouter.ai/api/v1/chat/completions",
-    secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
+    apiKey: "fake-provider-api-key",
   };
+
+  it("실제 API 키를 입력하면 참조명 없이 저장할 설정을 반환한다", () => {
+    const input = {
+      environment: "production",
+      provider: "openrouter",
+      modelName: "vendor/model",
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      apiKey: "fake-provider-api-key",
+    };
+    expect(parseResumeModelSettingInput(input)).toEqual(input);
+  });
 
   it("유효한 입력이면 허용한 다섯 필드만 반환하고 다른 필드는 버린다", () => {
     expect(
@@ -72,16 +83,28 @@ describe("parseResumeModelSettingInput", () => {
   });
 
   it.each([
-    "OTHER_TOKEN",
     "",
-    "RESUME_MODEL_TOKEN/../DATABASE_URL",
-    "RESUME_MODEL_TOKEN OPENROUTER",
-    "projects/p/secrets/RESUME_MODEL_TOKEN/versions/latest",
-    `RESUME_MODEL_TOKEN${"A".repeat(240)}`,
+    "  ",
     undefined,
-  ])("시크릿 이름이 %p이면 BadRequestException을 던진다", (secretRef) => {
-    expect(() => parseResumeModelSettingInput({ ...valid, secretRef })).toThrow(
+    3,
+    "a".repeat(4097),
+    "key\nvalue",
+    "key\rvalue",
+    "key\0value",
+  ])("API 키가 유효하지 않으면 BadRequestException을 던진다: %p", (apiKey) => {
+    expect(() => parseResumeModelSettingInput({ ...valid, apiKey })).toThrow(
       BadRequestException,
     );
+  });
+  it("수정에서 API 키를 생략하면 키 변경 필드를 만들지 않는다", () => {
+    const metadata = {
+      environment: valid.environment,
+      provider: valid.provider,
+      modelName: valid.modelName,
+      url: valid.url,
+    };
+    expect(
+      parseResumeModelSettingInput(metadata, { requireApiKey: false }),
+    ).toEqual(metadata);
   });
 });

@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { ResumeModelProvider } from "@prisma/client";
 
-// MCP 계약: 토큰 값과 공급자별 messages 형식은 넣지 않는다
+// 조회 전용 서비스 토큰으로 보호된 MCP 런타임 계약이다.
 export class ResumeModelSettingActiveResponse {
   @ApiProperty({ enum: ResumeModelProvider, example: "openrouter" })
   provider: ResumeModelProvider;
@@ -12,6 +12,6 @@ export class ResumeModelSettingActiveResponse {
   @ApiProperty({ example: "https://openrouter.ai/api/v1/chat/completions" })
   url: string;
 
-  @ApiProperty({ example: "RESUME_MODEL_TOKEN_OPENROUTER" })
-  secretRef: string;
+  @ApiProperty({ description: "활성 모델 호출에 사용하는 실제 API 키입니다." })
+  apiKey: string;
 }

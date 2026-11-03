@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ResumeModelSettingService } from "./resume-model-setting.service";
@@ -12,7 +16,7 @@ describe("ResumeModelSettingService", () => {
     provider: "openrouter",
     modelName: "anthropic/claude-sonnet-5.5",
     url: "https://openrouter.ai/api/v1/chat/completions",
-    secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
+    apiKey: "fake-provider-api-key",
   };
 
   beforeEach(async () => {
@@ -33,8 +37,19 @@ describe("ResumeModelSettingService", () => {
       await expect(service.findActive("production")).resolves.toEqual(active);
       expect(prisma.resumeModelSetting.findFirst).toHaveBeenCalledWith({
         where: { environment: "production", isActive: true },
-        select: { provider: true, modelName: true, url: true, secretRef: true },
+        select: { provider: true, modelName: true, url: true, apiKey: true },
       });
+    });
+
+    it("활성 설정에 실제 키가 없으면 참조 이름으로 대체하지 않고 실패한다", async () => {
+      prisma.resumeModelSetting.findFirst.mockResolvedValue({
+        ...active,
+        apiKey: null,
+        secretRef: "RESUME_MODEL_TOKEN_OPENROUTER",
+      });
+      await expect(service.findActive("production")).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
 
     it.each(["staging", "", undefined, ["production"]])(

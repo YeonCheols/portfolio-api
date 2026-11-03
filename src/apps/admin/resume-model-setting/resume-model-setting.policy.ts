@@ -6,7 +6,7 @@ export type ResumeModelSettingInput = {
   provider: ResumeModelProvider;
   modelName: string;
   url: string;
-  secretRef: string;
+  apiKey?: string;
 };
 
 const oneOf = <T extends string>(
@@ -54,20 +54,17 @@ const parseModelName = (value: unknown): string => {
   return modelName;
 };
 
-// MCP 런타임 계정이 읽을 수 있는 시크릿을 이 접두사로 한정한다. Secret Manager 이름은 255자 이하다
-const secretRefPattern = /^RESUME_MODEL_TOKEN[A-Za-z0-9_-]{0,237}$/;
-
-const parseSecretRef = (value: unknown): string => {
-  if (typeof value !== "string" || !secretRefPattern.test(value)) {
-    throw new BadRequestException(
-      "secretRef는 RESUME_MODEL_TOKEN으로 시작하는 Secret Manager 시크릿 이름이어야 합니다.",
-    );
+const parseApiKey = (value: unknown): string => {
+  const apiKey = typeof value === "string" ? value.trim() : "";
+  if (!apiKey || apiKey.length > 4096 || /[\0\r\n]/.test(apiKey)) {
+    throw new BadRequestException("apiKey는 유효한 모델 API 키여야 합니다.");
   }
-  return value;
+  return apiKey;
 };
 
 export const parseResumeModelSettingInput = (
   body: unknown,
+  options: { requireApiKey: boolean } = { requireApiKey: true },
 ): ResumeModelSettingInput => {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     throw new BadRequestException("요청 본문은 객체여야 합니다.");
@@ -84,6 +81,8 @@ export const parseResumeModelSettingInput = (
     provider,
     modelName: parseModelName(input.modelName),
     url: parseUrl(input.url, provider),
-    secretRef: parseSecretRef(input.secretRef),
+    ...(input.apiKey !== undefined || options.requireApiKey
+      ? { apiKey: parseApiKey(input.apiKey) }
+      : {}),
   };
 };
