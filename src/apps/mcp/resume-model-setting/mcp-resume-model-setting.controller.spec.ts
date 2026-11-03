@@ -65,6 +65,7 @@ describe("McpResumeModelSettingController", () => {
       .get("/service/resume-model-setting")
       .set(auth())
       .expect(200)
+      .expect("Cache-Control", "no-store")
       .expect([{ id: 1, ...visible, isActive: true }]);
     expect(authService.validateServiceToken).toHaveBeenCalledWith(
       "mcp",

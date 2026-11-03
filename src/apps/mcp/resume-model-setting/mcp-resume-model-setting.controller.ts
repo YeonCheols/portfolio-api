@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -14,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiOkResponse, ApiOperation } from "@nestjs/swagger";
 import {
   AdminResumeModelSettingCreateRequest,
+  AdminResumeModelSettingListItemResponse,
   AdminResumeModelSettingResponse,
   AdminResumeModelSettingUpdateRequest,
 } from "src/apps/admin/resume-model-setting/dto";
@@ -29,7 +31,9 @@ export class McpResumeModelSettingController {
   constructor(private readonly service: AdminResumeModelSettingService) {}
 
   @ApiOperation({ summary: "이력서 모델 설정 목록 (서비스 토큰)" })
-  @ApiOkResponse({ type: [AdminResumeModelSettingResponse] })
+  @ApiOkResponse({ type: [AdminResumeModelSettingListItemResponse] })
+  // 목록에 실제 키가 들어 있어 프록시나 브라우저가 응답을 저장하지 않게 한다
+  @Header("Cache-Control", "no-store")
   @Get()
   findAll() {
     return this.service.findAll();
