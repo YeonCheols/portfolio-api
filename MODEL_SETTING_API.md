@@ -17,7 +17,7 @@ MCP의 GitHub 로그인 관리 화면은 입력·변경 요청을 전달하며, 
 공식 호스트 근거는 [OpenAI API Reference](https://developers.openai.com/api/reference/overview)와
 [Gemini API Reference](https://aistudio.google.com/api-reference/all-methods)에서 확인합니다.
 
-기존 DB에는 `20261104001202_add_openai_gemini_providers` migration을 먼저 적용한 뒤 API를 배포합니다.
+`20261104001202_add_openai_gemini_providers` migration은 2026-11-04 운영 DB에 적용했습니다.
 이 migration은 기존 공급자와 설정을 보존하며 enum에 `openai`와 `gemini`만 추가합니다.
 MCP의 공급자 어댑터와 관리 화면 지원은 별도 작업이며 해당 배포 후 새 공급자 설정을 활성화합니다.
 
@@ -84,10 +84,29 @@ MCP 화면에서는 기존 `/admin/ai-models/api/settings` 경로를 사용하�
 활성 설정이 없으면 404, 실제 키가 비어 있으면 503을 반환하며 다른 모델·참조명·환경변수로 대체하지 않습니다.
 모델 키와 조회 인증 토큰은 서로 다른 값입니다. 조회 토큰은 portfolio-config의 정적 연결 정보로 유지합니다.
 
+## 운영 migration 적용 현황
+
+- `20261103080606_add_resume_model_api_key`는 2026-11-03 운영 DB에 적용했습니다. 실제 모델 키를 저장하는 nullable 컬럼을 추가했습니다.
+- `20261104001202_add_openai_gemini_providers`는 2026-11-04 운영 Cloud Run `portfolio-api`가 사용하는 DB에 적용했습니다. `ResumeModelProvider` enum에 `openai`와 `gemini`만 추가했습니다.
+
+공급자 enum migration은 다음 순서로 적용·확인했습니다. 연결 정보는 운영 리비전의 Secret Manager 참조를 통해 메모리에서만 읽고 출력하거나 파일에 저장하지 않았습니다.
+
+```bash
+pnpm prisma:migrate:status
+pnpm prisma:migrate:deploy
+pnpm prisma:migrate:status
+```
+
+- 적용 전에는 기존 16개 migration이 완료되어 있고 공급자 enum migration 하나만 미적용이었습니다.
+- 적용 후에는 `Database schema is up to date!`를 확인했으며 전체 17개 migration이 적용된 상태였습니다.
+- 실제 DB enum 값이 `openrouter`, `openai`, `gemini`인 것을 읽기 전용 조회로 확인했습니다.
+- `_prisma_migrations`의 완료 상태와 checksum이 커밋된 SQL 파일의 SHA-256과 일치했습니다. Prisma CLI가 적용 이력을 기록했으며 이력 테이블을 직접 수정하거나 `migrate resolve`로 정합화하지 않았습니다.
+- 2026-11-04 기록 시점에는 운영 DDL 적용까지 완료했습니다. 새 공급자를 허용하는 API 코드와 MCP 어댑터·관리 화면의 배포 완료를 의미하지 않습니다.
+
 ## 적용 순서
 
-1. DB migration을 적용합니다. 운영 DB에는 2026-11-03 적용하고 상태를 검증했습니다.
-2. portfolio-api의 새 계약을 배포합니다.
+1. 대상 DB의 migration 상태를 확인하고 미적용 migration을 적용합니다. 위 운영 적용 현황의 모델 키와 공급자 enum migration은 적용·검증을 완료했습니다.
+2. OpenAI·Gemini 공급자를 허용하는 portfolio-api 코드를 배포합니다.
 3. MCP 설정 화면·런타임을 배포합니다.
 4. 화면에서 실제 키가 있는 설정을 생성하고 환경별로 활성화합니다.
 5. MCP 요청별로 활성 모델과 키가 조회되는지 확인합니다.
