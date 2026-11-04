@@ -26,6 +26,8 @@ const oneOf = <T extends string>(
 // MCP가 이 주소로 토큰을 보내므로 공급자 공식 호스트 밖으로는 보내지 않는다
 const allowedHosts: Record<ResumeModelProvider, string> = {
   openrouter: "openrouter.ai",
+  openai: "api.openai.com",
+  gemini: "generativelanguage.googleapis.com",
 };
 
 const parseUrl = (value: unknown, provider: ResumeModelProvider): string => {

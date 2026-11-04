@@ -6,13 +6,21 @@ export class AdminResumeModelSettingCreateRequest {
   @ApiProperty({ enum: ResumeModelEnvironment, example: "production" })
   environment: ResumeModelEnvironment;
 
-  @ApiProperty({ enum: ResumeModelProvider, example: "openrouter" })
+  @ApiProperty({
+    enum: ResumeModelProvider,
+    example: "openrouter",
+    description: "OpenRouter, OpenAI, Gemini 모델 공급자입니다.",
+  })
   provider: ResumeModelProvider;
 
   @ApiProperty({ example: "anthropic/claude-sonnet-5.5" })
   modelName: string;
 
-  @ApiProperty({ example: "https://openrouter.ai/api/v1/chat/completions" })
+  @ApiProperty({
+    example: "https://openrouter.ai/api/v1/chat/completions",
+    description:
+      "공급자별 공식 HTTPS 호스트만 허용합니다: openrouter.ai, api.openai.com, generativelanguage.googleapis.com.",
+  })
   url: string;
 
   @ApiProperty({

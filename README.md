@@ -164,8 +164,20 @@ https://local.ycseng.com:4000/api (HTTPS 서버 사용 시)
 - 기존 `secretRef` 컬럼은 데이터 보존을 위해 nullable로 유지하며 새 런타임 계약에서는 사용하지 않습니다.
 - 운영 스키마를 임시 로컬 DB의 전체 migration 결과와 읽기 전용으로 대조했습니다. 기존 인증 변경은 이미 존재하고 이번 모델 키 변경만 차이인 것을 확인했습니다.
 - `20261030150000_shared_auth_token_lifecycle`과 `20261102090000_mcp_oauth_protocol`은 SQL 재실행 없이 `prisma migrate resolve --applied`로 누락 이력만 정합화했습니다.
-- 새 모델 키 migration은 `prisma migrate deploy`로 적용했으며 16개 migration이 모두 최신 상태인 것을 확인했습니다. `_prisma_migrations`를 SQL로 직접 수정하지 않았습니다.
+- 새 모델 키 migration은 `prisma migrate deploy`로 적용했으며 당시 16개 migration이 모두 최신 상태인 것을 확인했습니다. `_prisma_migrations`를 SQL로 직접 수정하지 않았습니다.
 - 기존 모델의 실제 API 키는 자동 입력하지 않았습니다. 키가 들어간 새 비활성 설정을 등록한 뒤 활성화해야 합니다. 키가 없는 설정은 활성화와 런타임 조회를 거부합니다.
 - 이 기록은 DB 적용 완료를 의미합니다. 새 API 코드와 MCP 화면·런타임의 배포 완료를 의미하지 않습니다.
 
 저장·수정·목록·런타임 조회 JSON 계약은 [모델 설정 API 문서](MODEL_SETTING_API.md)를 따릅니다.
+
+### 모델 공급자 enum migration 적용 현황
+
+2026-11-04 운영 Cloud Run `portfolio-api`가 사용하는 DB에 `20261104001202_add_openai_gemini_providers`를 `pnpm prisma:migrate:deploy`로 적용했습니다.
+
+- `ResumeModelProvider` enum에 `openai`와 `gemini`를 추가했습니다. 기존 `openrouter` 값과 설정 데이터는 변경하지 않습니다.
+- 적용 전 기존 16개 migration이 완료되어 있고 이번 migration 하나만 미적용인 것을 확인했습니다.
+- 적용 후 실제 enum 값이 `openrouter`, `openai`, `gemini`이며 전체 17개 migration이 최신 상태인 것을 확인했습니다.
+- `_prisma_migrations`의 적용 완료 상태와 SQL checksum이 커밋된 migration 파일과 일치하는지 확인했습니다. 이력 테이블을 SQL로 직접 수정하거나 `migrate resolve`를 실행하지 않았습니다.
+- 이 기록은 운영 DB의 DDL과 Prisma 이력 반영 완료를 의미합니다. 기록 시점에 OpenAI·Gemini를 허용하는 API 코드와 MCP 어댑터·화면의 배포는 별도 단계로 남아 있습니다.
+
+적용 명령과 배포 순서는 [모델 설정 API 문서](MODEL_SETTING_API.md#운영-migration-적용-현황)를 따릅니다.

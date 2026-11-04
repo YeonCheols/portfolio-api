@@ -3,7 +3,11 @@ import { ResumeModelProvider } from "@prisma/client";
 
 // 조회 전용 서비스 토큰으로 보호된 MCP 런타임 계약이다.
 export class ResumeModelSettingActiveResponse {
-  @ApiProperty({ enum: ResumeModelProvider, example: "openrouter" })
+  @ApiProperty({
+    enum: ResumeModelProvider,
+    example: "openrouter",
+    description: "활성 설정의 OpenRouter, OpenAI, Gemini 모델 공급자입니다.",
+  })
   provider: ResumeModelProvider;
 
   @ApiProperty({ example: "anthropic/claude-sonnet-5.5" })
