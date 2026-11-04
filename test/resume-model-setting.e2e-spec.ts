@@ -151,4 +151,96 @@ describe("이력서 모델 설정 테스트 DB 통합", () => {
       .set(read)
       .expect(404);
   });
+
+  describe.each(["production", "development"] as const)(
+    "%s 환경",
+    (environment) => {
+      it.each([
+        {
+          provider: "openai",
+          modelName: "test-openai-model",
+          url: "https://api.openai.com/v1/responses",
+        },
+        {
+          provider: "gemini",
+          modelName: "test-gemini-model",
+          url: "https://generativelanguage.googleapis.com/v1beta/models/test-gemini-model:generateContent",
+        },
+      ])(
+        "$provider 설정을 저장·수정·활성화하면 같은 환경의 활성 조회에만 반영된다",
+        async (providerSetting) => {
+          const server = app.getHttpServer();
+          const admin = { Authorization: `Bearer ${adminToken}` };
+          const read = { Authorization: "Bearer integration-read-token" };
+          const otherEnvironment =
+            environment === "production" ? "development" : "production";
+          await prisma.resumeModelSetting.createMany({
+            data: [
+              { ...setting, environment: "production", isActive: true },
+              { ...setting, environment: "development", isActive: true },
+            ],
+          });
+          const next = {
+            ...providerSetting,
+            apiKey: "fake-new-provider-api-key",
+          };
+
+          const created = await request(server)
+            .post("/admin/resume-model-setting")
+            .set(admin)
+            .send({ ...next, environment })
+            .expect(201);
+          expect(created.body).toMatchObject({
+            provider: next.provider,
+            environment,
+            hasApiKey: true,
+            isActive: false,
+          });
+          expect(created.body).not.toHaveProperty("apiKey");
+          expect(created.body).not.toHaveProperty("secretRef");
+
+          const updated = { ...next, modelName: `${next.modelName}-updated` };
+          const response = await request(server)
+            .put(`/admin/resume-model-setting/${created.body.id}`)
+            .set(admin)
+            .send({
+              ...providerSetting,
+              modelName: updated.modelName,
+              environment: otherEnvironment,
+            })
+            .expect(200);
+          expect(response.body).toMatchObject({
+            environment,
+            provider: next.provider,
+            modelName: updated.modelName,
+            hasApiKey: true,
+          });
+          expect(response.body).not.toHaveProperty("apiKey");
+
+          await request(server)
+            .post(`/admin/resume-model-setting/${created.body.id}/activate`)
+            .set(admin)
+            .expect(200);
+          await request(server)
+            .get(`/resume-model-setting/active?environment=${environment}`)
+            .set(read)
+            .expect(200)
+            .expect("Cache-Control", "no-store")
+            .expect(updated);
+          await request(server)
+            .get(`/resume-model-setting/active?environment=${otherEnvironment}`)
+            .set(read)
+            .expect(200)
+            .expect(setting);
+
+          await expect(
+            prisma.resumeModelSetting.findMany({
+              where: { environment, isActive: true },
+              select: { id: true },
+            }),
+          ).resolves.toEqual([{ id: created.body.id }]);
+        },
+      );
+    },
+  );
 });

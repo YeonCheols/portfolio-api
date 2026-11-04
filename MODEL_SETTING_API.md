@@ -4,6 +4,23 @@
 MCP의 GitHub 로그인 관리 화면은 입력·변경 요청을 전달하며, MCP 도구는 보호된 활성 조회에서 받은 키를 요청별 모델 클라이언트에만 전달합니다.
 모델 키를 GCP Secret Manager 참조명이나 정적 MCP 환경변수로 관리하지 않습니다.
 
+## 지원 공급자
+
+`provider`는 Prisma의 `ResumeModelProvider` enum을 사용하며 다음 값을 허용합니다.
+
+- `openrouter`는 `https://openrouter.ai` 호스트를 사용합니다.
+- `openai`는 `https://api.openai.com` 호스트를 사용합니다.
+- `gemini`는 `https://generativelanguage.googleapis.com` 호스트를 사용합니다.
+
+각 공급자의 주소에 다른 공급자 호스트, HTTP, 사용자 정보가 포함된 URL은 허용하지 않습니다.
+모델 이름과 호출 경로는 설정에 저장하며 API는 모델 공급자를 직접 호출하지 않습니다.
+공식 호스트 근거는 [OpenAI API Reference](https://developers.openai.com/api/reference/overview)와
+[Gemini API Reference](https://aistudio.google.com/api-reference/all-methods)에서 확인합니다.
+
+기존 DB에는 `20261104001202_add_openai_gemini_providers` migration을 먼저 적용한 뒤 API를 배포합니다.
+이 migration은 기존 공급자와 설정을 보존하며 enum에 `openai`와 `gemini`만 추가합니다.
+MCP의 공급자 어댑터와 관리 화면 지원은 별도 작업이며 해당 배포 후 새 공급자 설정을 활성화합니다.
+
 ## 생성
 
 `POST /service/resume-model-setting`은 MCP 서비스 인증 토큰으로 보호합니다. 새 설정은 비활성으로 생성합니다.
@@ -18,7 +35,7 @@ MCP의 GitHub 로그인 관리 화면은 입력·변경 요청을 전달하며, 
 }
 ```
 
-`apiKey`는 1~4096자이며 빈 값·줄바꿈·NUL을 거부합니다. OpenRouter 모델의 호출 주소는 기존처럼 공식 HTTPS 호스트로 제한합니다.
+`apiKey`는 1~4096자이며 빈 값·줄바꿈·NUL을 거부합니다. 모델의 호출 주소는 공급자별 공식 HTTPS 호스트로 제한합니다.
 `secretRef`는 새 입력 계약에 포함하지 않습니다.
 
 ## 수정

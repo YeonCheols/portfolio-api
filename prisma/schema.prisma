@@ -63,6 +63,8 @@ enum ResumeModelEnvironment {
 
 enum ResumeModelProvider {
   openrouter
+  openai
+  gemini
 }
 
 // 환경별 활성 설정 하나는 마이그레이션의 부분 유니크 인덱스가 강제한다

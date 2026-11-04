@@ -21,6 +21,28 @@ describe("parseResumeModelSettingInput", () => {
     expect(parseResumeModelSettingInput(input)).toEqual(input);
   });
 
+  it("OpenAI의 공식 HTTPS 주소로 입력하면 openai 설정을 반환한다", () => {
+    const input = {
+      ...valid,
+      provider: "openai",
+      modelName: "test-openai-model",
+      url: "https://api.openai.com/v1/responses",
+    };
+
+    expect(parseResumeModelSettingInput(input)).toEqual(input);
+  });
+
+  it("Gemini의 공식 HTTPS 주소로 입력하면 gemini 설정을 반환한다", () => {
+    const input = {
+      ...valid,
+      provider: "gemini",
+      modelName: "test-gemini-model",
+      url: "https://generativelanguage.googleapis.com/v1beta/models/test-gemini-model:generateContent",
+    };
+
+    expect(parseResumeModelSettingInput(input)).toEqual(input);
+  });
+
   it("유효한 입력이면 허용한 다섯 필드만 반환하고 다른 필드는 버린다", () => {
     expect(
       parseResumeModelSettingInput({
@@ -50,7 +72,7 @@ describe("parseResumeModelSettingInput", () => {
     },
   );
 
-  it.each(["openai", "", undefined])(
+  it.each(["unsupported-provider", "", undefined])(
     "공급자가 %p이면 BadRequestException을 던진다",
     (provider) => {
       expect(() =>
@@ -80,6 +102,38 @@ describe("parseResumeModelSettingInput", () => {
     expect(() => parseResumeModelSettingInput({ ...valid, url })).toThrow(
       BadRequestException,
     );
+  });
+
+  describe.each([
+    { provider: "openai", host: "api.openai.com" },
+    { provider: "gemini", host: "generativelanguage.googleapis.com" },
+  ])("$provider의 호스트 검증", ({ provider, host }) => {
+    it.each([
+      `http://${host}/api`,
+      "https://example.com/api",
+      "https://openrouter.ai/api/v1/chat/completions",
+      `https://${host}.evil.example/api`,
+      `https://${host}@evil.example/api`,
+      `https://user:password@${host}/api`,
+    ])("호출 주소가 %s이면 BadRequestException을 던진다", (url) => {
+      expect(() =>
+        parseResumeModelSettingInput({ ...valid, provider, url }),
+      ).toThrow(BadRequestException);
+    });
+  });
+
+  it.each([
+    { provider: "openai", url: "https://generativelanguage.googleapis.com/" },
+    { provider: "gemini", url: "https://api.openai.com/" },
+    { provider: "openrouter", url: "https://api.openai.com/" },
+    {
+      provider: "openrouter",
+      url: "https://generativelanguage.googleapis.com/",
+    },
+  ])("$provider에 다른 공급자의 주소 $url을 허용하지 않는다", (setting) => {
+    expect(() =>
+      parseResumeModelSettingInput({ ...valid, ...setting }),
+    ).toThrow(BadRequestException);
   });
 
   it.each([
