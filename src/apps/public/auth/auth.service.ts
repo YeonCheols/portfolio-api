@@ -13,6 +13,7 @@ import {
 } from "crypto";
 import { sign, verify as verifyJwt, type JwtPayload } from "jsonwebtoken";
 import { AuthHistoryStatus } from "@prisma/client";
+import { OAuthStateService } from "src/apps/identity/oauth-state.service";
 import { UserIdentityService } from "src/apps/identity/user-identity.service";
 import { PrismaService } from "src/prisma/prisma.service";
 
@@ -74,6 +75,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userIdentity: UserIdentityService,
+    private readonly oauthState: OAuthStateService,
   ) {}
 
   private getClientConfig(clientId: AuthClientId): ClientConfig {
@@ -364,29 +366,7 @@ export class AuthService {
 
   async createOAuthState(clientId: AuthClientId) {
     const config = this.getClientConfig(clientId);
-    const now = new Date();
-    await this.prisma.authHistory.deleteMany({
-      where: {
-        status: AuthHistoryStatus.pending,
-        expiresAt: { lt: now },
-      },
-    });
-    const state = randomBytes(32).toString("base64url");
-    const stateExpiresAt = new Date(now.getTime() + OAUTH_STATE_TTL_MS);
-    await this.prisma.authHistory.create({
-      data: {
-        clientId,
-        userId: null,
-        redirectUri: config.redirectUri,
-        stateHash: hashToken(state),
-        stateExpiresAt,
-        stateConsumedAt: null,
-        audience: null,
-        scope: null,
-        status: AuthHistoryStatus.pending,
-        expiresAt: stateExpiresAt,
-      },
-    });
+    const state = await this.oauthState.issue(clientId, config.redirectUri);
     const authorizationUrl = new URL(
       "https://github.com/login/oauth/authorize",
     );
@@ -397,35 +377,8 @@ export class AuthService {
     return { state, authorizationUrl: authorizationUrl.toString() };
   }
 
-  async consumeOAuthState(state: string, clientId: AuthClientId) {
-    const record = await this.prisma.authHistory.findUnique({
-      where: { stateHash: hashToken(state) },
-    });
-    if (
-      !record ||
-      record.clientId !== clientId ||
-      record.status !== AuthHistoryStatus.pending ||
-      record.userId !== null ||
-      record.stateConsumedAt ||
-      !record.stateExpiresAt ||
-      record.stateExpiresAt <= new Date() ||
-      !record.redirectUri
-    ) {
-      throw new UnauthorizedException();
-    }
-    const consumed = await this.prisma.authHistory.updateMany({
-      where: {
-        id: record.id,
-        clientId,
-        status: AuthHistoryStatus.pending,
-        userId: null,
-        stateConsumedAt: null,
-        stateExpiresAt: { gt: new Date() },
-      },
-      data: { stateConsumedAt: new Date() },
-    });
-    if (consumed.count !== 1) throw new UnauthorizedException();
-    return record;
+  consumeOAuthState(state: string, clientId: AuthClientId) {
+    return this.oauthState.consume(state, clientId);
   }
 
   validateServiceToken(
