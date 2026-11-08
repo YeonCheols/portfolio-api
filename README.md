@@ -102,6 +102,30 @@ MCP 클라이언트용 표준 OAuth endpoint는 `GET /.well-known/oauth-authoriz
 
 OAuth state는 앱 ID와 callback URI에 바인딩해 `AuthHistory`에 해시로 저장하고 한 번만 소비합니다. GitHub OAuth access token은 GitHub API 호출에만 사용하고 저장하지 않습니다. refresh token 원문도 저장하지 않으며 `UserToken`에 해시만 저장합니다. 갱신할 때마다 새 토큰 행을 추가하고 이전 토큰 재사용이 감지되면 해당 인증 이력과 토큰을 폐기합니다. JWT access token은 서명과 만료 시각으로 검증하며 DB에 저장하지 않습니다. 서명 키와 issuer는 `AUTH_PRIVATE_KEY`, `AUTH_ISSUER`로 공용 관리하고, 공개키는 `GET /auth/.well-known/jwks.json`에서 제공합니다. issuer가 `https://api.ycseng.com/auth`이면 OAuth discovery metadata 경로는 RFC 8414에 따라 `https://api.ycseng.com/.well-known/oauth-authorization-server/auth`입니다. MCP 서버는 각 요청에서 bearer access token을 `/auth/introspect`에 보내고 API는 JWT와 활성·폐기 상태를 확인합니다. 두 migration의 운영 DB 스키마는 반영되었으며, 적용 이력은 `pnpm prisma:migrate:status`로 확인합니다. API 및 MCP 런타임에는 위 변수를 연결해야 합니다. 이미 발급된 stateless 액세스 토큰은 introspection이 없이는 폐기 후에도 최대 1시간 유효할 수 있습니다.
 
+### 관리자 OAuth 로그인 (Google, GitHub)
+
+관리자 앱(portfolio-admin)이 Google 또는 GitHub로 로그인하는 관리자 전용 엔드포인트입니다. 공용 사용자 토큰(`auth/*`)과 별개이며, 로그인에 성공하면 이메일·비밀번호 로그인(`POST admin/user/login`)과 같은 관리자 토큰(`access_token` 쿠키, 1일)을 발급하므로 `admin/*` API의 인증 계약은 바뀌지 않습니다.
+
+| 엔드포인트 | 설명 |
+| --- | --- |
+| `GET admin/auth/oauth/:provider/authorize` | 일회용 state를 만들고 공급자 로그인 화면으로 302 이동합니다. `provider`는 `google` 또는 `github`입니다 |
+| `GET admin/auth/oauth/:provider/callback` | state를 소비하고 코드를 교환합니다. 성공하면 쿠키를 심고 관리자 앱 `/`로, 실패하면 `/login?error=<코드>`로 302 이동합니다 |
+
+- 관리자 판정: 공급자가 **검증한 이메일**이 활성 `AdminUser.email`과 같을 때만 허용합니다(대소문자 무시). Google은 `email_verified`, GitHub는 `user:email` 범위로 조회한 기본·검증된 이메일을 씁니다
+- 거절 코드: `ACCESS_DENIED`(미등록·비활성·미검증 이메일, 공급자 거절), `AUTH_FAILED`(잘못되었거나 만료·재사용된 state, 코드 교환 실패). 공급자 오류 원문과 토큰은 응답·로그·주소에 싣지 않습니다
+- 복귀 경로는 관리자 앱의 `/`와 `/login`으로 고정하며 요청 값을 쓰지 않습니다
+- 로그인 CSRF 방지: `authorize`가 state를 담은 단기 쿠키(`admin_oauth_state`, httpOnly·secure·SameSite=Lax, 10분)를 시작한 브라우저에 심고 `callback`이 요청의 state와 대조합니다. 결과와 상관없이 콜백에서 지웁니다
+- 비활성화된 관리자(`isActive=false`)는 OAuth 로그인뿐 아니라 이미 발급된 토큰으로도 `admin/*`에 접근할 수 없습니다
+- 환경 변수:
+
+| 변수 | 설명 |
+| --- | --- |
+| `ADMIN_APP_URL` | 관리자 앱 주소(예: `https://admin.ycseng.com`). 결과 리다이렉트의 기준입니다 |
+| `ADMIN_GOOGLE_OAUTH_CLIENT_ID`, `ADMIN_GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth client |
+| `ADMIN_GOOGLE_REDIRECT_URI` | `https://api.ycseng.com/admin/auth/oauth/google/callback` |
+| `ADMIN_GITHUB_OAUTH_CLIENT_ID`, `ADMIN_GITHUB_OAUTH_CLIENT_SECRET` | GitHub OAuth App (MCP·portfolio용 앱과 별도로 만듭니다) |
+| `ADMIN_GITHUB_REDIRECT_URI` | `https://api.ycseng.com/admin/auth/oauth/github/callback` |
+
 ### 환경 변수 (메일 발송)
 
 다음 환경 변수를 설정해 메일 발송 기능을 사용합니다.

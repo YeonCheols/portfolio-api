@@ -10,8 +10,7 @@ import {
   AdminResetPasswordRequest,
 } from "./dto";
 import * as bcrypt from "bcryptjs";
-import * as jwt from "jsonwebtoken";
-import { getAdminJwtSecret } from "../auth/jwt-secret";
+import { signAdminAccessToken } from "../auth/admin-session";
 
 @Injectable()
 export class AdminUserService {
@@ -51,11 +50,7 @@ export class AdminUserService {
     const isMatch = await bcrypt.compare(loginUserDto.password, user.password);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
 
-    const token = jwt.sign(
-      { sub: user.id, email: user.email },
-      getAdminJwtSecret(),
-      { expiresIn: "1d" },
-    );
+    const token = signAdminAccessToken(user);
     await this.prisma.adminUser.update({
       where: { id: user.id },
       data: { updatedAt: new Date() },

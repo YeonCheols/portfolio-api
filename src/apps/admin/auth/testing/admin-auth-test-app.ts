@@ -6,7 +6,11 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { JwtStrategy } from "../jwt.strategy";
 
 export const TEST_JWT_SECRET = "test-jwt-secret";
-export const TEST_ADMIN = { id: 1, email: "admin@test.com" };
+export const TEST_ADMIN = {
+  id: 1,
+  email: "admin@test.com",
+  isActive: true,
+};
 
 // undefined를 그대로 대입하면 문자열 "undefined"가 들어가 키가 있는 것처럼 남는다
 export const restoreJwtSecret = (original: string | undefined) => {

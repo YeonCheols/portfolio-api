@@ -2,6 +2,7 @@ import { createHash, generateKeyPairSync } from "crypto";
 import { UnauthorizedException } from "@nestjs/common";
 import { decode, sign as signJwt, verify } from "jsonwebtoken";
 import { PrismaService } from "src/prisma/prisma.service";
+import { OAuthStateService } from "src/apps/identity/oauth-state.service";
 import { AuthService } from "./auth.service";
 
 describe("AuthService", () => {
@@ -62,6 +63,7 @@ describe("AuthService", () => {
     service = new AuthService(
       prisma as unknown as PrismaService,
       userIdentity as never,
+      new OAuthStateService(prisma as unknown as PrismaService),
     );
   });
 

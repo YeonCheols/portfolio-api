@@ -19,6 +19,11 @@ import { Response } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GetUser } from "../auth/get-user.decorator";
 import { AuthExceptionFilter } from "../auth/auth.exception.filter";
+import {
+  ADMIN_ACCESS_TOKEN_COOKIE,
+  ADMIN_ACCESS_TOKEN_MAX_AGE_MS,
+  adminAuthCookieOptions,
+} from "../auth/admin-session";
 
 @Controller("admin/user")
 export class AdminUserController {
@@ -44,13 +49,9 @@ export class AdminUserController {
   ) {
     const { user, accessToken } = await this.userService.login(loginUserDto);
 
-    res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-      domain: ".ycseng.com",
-      maxAge: 60 * 60 * 24 * 1000,
+    res.cookie(ADMIN_ACCESS_TOKEN_COOKIE, accessToken, {
+      ...adminAuthCookieOptions,
+      maxAge: ADMIN_ACCESS_TOKEN_MAX_AGE_MS,
     });
 
     return { user };
@@ -89,13 +90,7 @@ export class AdminUserController {
   @UseFilters(AuthExceptionFilter)
   @Post("logout")
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie("access_token", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-      domain: ".ycseng.com",
-    });
+    res.clearCookie(ADMIN_ACCESS_TOKEN_COOKIE, adminAuthCookieOptions);
     return { message: "로그아웃 되었습니다." };
   }
 }
