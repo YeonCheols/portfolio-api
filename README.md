@@ -114,6 +114,8 @@ OAuth state는 앱 ID와 callback URI에 바인딩해 `AuthHistory`에 해시로
 - 관리자 판정: 공급자가 **검증한 이메일**이 활성 `AdminUser.email`과 같을 때만 허용합니다(대소문자 무시). Google은 `email_verified`, GitHub는 `user:email` 범위로 조회한 기본·검증된 이메일을 씁니다
 - 거절 코드: `ACCESS_DENIED`(미등록·비활성·미검증 이메일, 공급자 거절), `AUTH_FAILED`(잘못되었거나 만료·재사용된 state, 코드 교환 실패). 공급자 오류 원문과 토큰은 응답·로그·주소에 싣지 않습니다
 - 복귀 경로는 관리자 앱의 `/`와 `/login`으로 고정하며 요청 값을 쓰지 않습니다
+- 로그인 CSRF 방지: `authorize`가 state를 담은 단기 쿠키(`admin_oauth_state`, httpOnly·secure·SameSite=Lax, 10분)를 시작한 브라우저에 심고 `callback`이 요청의 state와 대조합니다. 결과와 상관없이 콜백에서 지웁니다
+- 비활성화된 관리자(`isActive=false`)는 OAuth 로그인뿐 아니라 이미 발급된 토큰으로도 `admin/*`에 접근할 수 없습니다
 - 환경 변수:
 
 | 변수 | 설명 |

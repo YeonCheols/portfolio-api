@@ -4,20 +4,25 @@ import {
   NotFoundException,
   Param,
   Query,
+  Req,
   Res,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { Response } from "express";
+import { Request, Response } from "express";
 import {
   ADMIN_ACCESS_TOKEN_COOKIE,
   ADMIN_ACCESS_TOKEN_MAX_AGE_MS,
   adminAuthCookieOptions,
 } from "../admin-session";
 import {
+  ADMIN_OAUTH_STATE_COOKIE,
+  ADMIN_OAUTH_STATE_COOKIE_MAX_AGE_MS,
   AdminOAuthError,
   AdminOAuthProvider,
   adminAppRedirectUrl,
+  adminOAuthStateCookieOptions,
   isAdminOAuthProvider,
+  readCookie,
 } from "./admin-oauth";
 import { AdminOAuthService } from "./admin-oauth.service";
 
@@ -37,9 +42,13 @@ export class AdminOAuthController {
     @Param("provider") provider: string,
     @Res() res: Response,
   ): Promise<void> {
-    const url = await this.service.getAuthorizationUrl(
+    const { url, state } = await this.service.getAuthorizationUrl(
       requireProvider(provider),
     );
+    res.cookie(ADMIN_OAUTH_STATE_COOKIE, state, {
+      ...adminOAuthStateCookieOptions,
+      maxAge: ADMIN_OAUTH_STATE_COOKIE_MAX_AGE_MS,
+    });
     res.redirect(302, url);
   }
 
@@ -50,14 +59,21 @@ export class AdminOAuthController {
   async callback(
     @Param("provider") provider: string,
     @Query() query: Record<string, string | undefined>,
+    @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     const validProvider = requireProvider(provider);
+    const browserState = readCookie(
+      req.headers.cookie,
+      ADMIN_OAUTH_STATE_COOKIE,
+    );
+    // 일회용 state는 한 번 쓰고 끝나므로 결과와 상관없이 브라우저의 쿠키도 지운다
+    res.clearCookie(ADMIN_OAUTH_STATE_COOKIE, adminOAuthStateCookieOptions);
     if (query.error) {
       res.redirect(302, adminAppRedirectUrl("/login", "ACCESS_DENIED"));
       return;
     }
-    if (!query.code || !query.state) {
+    if (!query.code || !query.state || browserState !== query.state) {
       res.redirect(302, adminAppRedirectUrl("/login", "AUTH_FAILED"));
       return;
     }

@@ -125,7 +125,9 @@ export class AdminOAuthService {
     private readonly oauthState: OAuthStateService,
   ) {}
 
-  async getAuthorizationUrl(provider: AdminOAuthProvider): Promise<string> {
+  async getAuthorizationUrl(
+    provider: AdminOAuthProvider,
+  ): Promise<{ url: string; state: string }> {
     const config = providerConfig(provider);
     const state = await this.oauthState.issue(
       ADMIN_OAUTH_CLIENT_ID,
@@ -140,7 +142,7 @@ export class AdminOAuthService {
     Object.entries(endpoint.extra ?? {}).forEach(([key, value]) =>
       url.searchParams.set(key, value),
     );
-    return url.toString();
+    return { url: url.toString(), state };
   }
 
   /**
@@ -162,7 +164,7 @@ export class AdminOAuthService {
       if (!email) throw new AdminOAuthError("ACCESS_DENIED");
 
       const admin = await this.prisma.adminUser.findFirst({
-        where: { email: { equals: email.toLowerCase(), mode: "insensitive" } },
+        where: { email: { equals: email, mode: "insensitive" } },
       });
       if (!admin || !admin.isActive) throw new AdminOAuthError("ACCESS_DENIED");
 

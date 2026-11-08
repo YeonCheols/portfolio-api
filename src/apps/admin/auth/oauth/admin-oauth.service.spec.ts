@@ -50,7 +50,9 @@ describe("AdminOAuthService", () => {
 
   describe("getAuthorizationUrl", () => {
     it("Google은 이메일 범위와 일회용 state가 담긴 시작 주소를 만든다", async () => {
-      const url = new URL(await service.getAuthorizationUrl("google"));
+      const result = await service.getAuthorizationUrl("google");
+      const url = new URL(result.url);
+      expect(result.state).toBe("issued-state");
 
       expect(url.origin + url.pathname).toBe(
         "https://accounts.google.com/o/oauth2/v2/auth",
@@ -70,7 +72,7 @@ describe("AdminOAuthService", () => {
     });
 
     it("GitHub는 검증된 이메일을 읽을 수 있는 범위로 시작한다", async () => {
-      const url = new URL(await service.getAuthorizationUrl("github"));
+      const url = new URL((await service.getAuthorizationUrl("github")).url);
 
       expect(url.origin + url.pathname).toBe(
         "https://github.com/login/oauth/authorize",
@@ -124,8 +126,9 @@ describe("AdminOAuthService", () => {
 
       await service.signIn("google", "code-1", "state-1");
 
+      // 대소문자 처리는 DB 조회의 insensitive 모드가 맡는다
       expect(prisma.adminUser.findFirst).toHaveBeenCalledWith({
-        where: { email: { equals: "admin@test.com", mode: "insensitive" } },
+        where: { email: { equals: "Admin@Test.com", mode: "insensitive" } },
       });
     });
 

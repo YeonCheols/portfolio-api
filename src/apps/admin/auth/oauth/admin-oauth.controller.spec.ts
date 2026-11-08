@@ -29,9 +29,10 @@ describe("AdminOAuthController", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service.getAuthorizationUrl.mockResolvedValue(
-      "https://accounts.google.com/o/oauth2/v2/auth?state=issued",
-    );
+    service.getAuthorizationUrl.mockResolvedValue({
+      url: "https://accounts.google.com/o/oauth2/v2/auth?state=issued",
+      state: "issued-state",
+    });
     service.signIn.mockResolvedValue({
       admin: { id: 7, email: "admin@test.com" },
       accessToken: "issued-admin-token",
@@ -51,6 +52,20 @@ describe("AdminOAuthController", () => {
       expect(service.getAuthorizationUrl).toHaveBeenCalledWith("google");
     });
 
+    it("시작한 브라우저에 state를 담은 단기 쿠키를 심는다", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/admin/auth/oauth/google/authorize")
+        .expect(302);
+
+      const cookie = (response.headers["set-cookie"] as unknown as string[])[0];
+      expect(cookie).toContain("admin_oauth_state=issued-state");
+      expect(cookie).toContain("HttpOnly");
+      expect(cookie).toContain("Secure");
+      expect(cookie).toContain("SameSite=Lax");
+      expect(cookie).toContain("Path=/admin/auth/oauth");
+      expect(cookie).toMatch(/Max-Age=600/);
+    });
+
     it("지원하지 않는 공급자는 404이고 state를 만들지 않는다", async () => {
       await request(app.getHttpServer())
         .get("/admin/auth/oauth/facebook/authorize")
@@ -64,10 +79,13 @@ describe("AdminOAuthController", () => {
     it("성공하면 기존 관리자 쿠키를 심고 관리자 앱 루트로 이동한다", async () => {
       const response = await request(app.getHttpServer())
         .get("/admin/auth/oauth/github/callback?code=c1&state=s1")
+        .set("Cookie", "admin_oauth_state=s1")
         .expect(302)
         .expect("Location", "https://admin.example.com/");
 
-      const cookie = (response.headers["set-cookie"] as unknown as string[])[0];
+      const cookie = (
+        response.headers["set-cookie"] as unknown as string[]
+      ).find((c) => c.startsWith("access_token="));
       expect(cookie).toContain("access_token=issued-admin-token");
       expect(cookie).toContain("HttpOnly");
       expect(cookie).toContain("Secure");
@@ -83,10 +101,13 @@ describe("AdminOAuthController", () => {
 
         const response = await request(app.getHttpServer())
           .get("/admin/auth/oauth/google/callback?code=c1&state=s1")
+          .set("Cookie", "admin_oauth_state=s1")
           .expect(302)
           .expect("Location", `https://admin.example.com/login?error=${code}`);
 
-        expect(response.headers["set-cookie"]).toBeUndefined();
+        const cookies = (response.headers["set-cookie"] ??
+          []) as unknown as string[];
+        expect(cookies.some((c) => c.startsWith("access_token="))).toBe(false);
       },
     );
 
@@ -122,11 +143,47 @@ describe("AdminOAuthController", () => {
         .get(
           "/admin/auth/oauth/github/callback?code=secret-code&state=secret-state",
         )
+        .set("Cookie", "admin_oauth_state=secret-state")
         .expect(302);
 
       expect(response.headers.location).not.toMatch(
         /secret-code|secret-state|issued-admin-token/,
       );
+    });
+
+    it.each([
+      ["state 쿠키가 없으면", undefined],
+      ["state 쿠키가 요청의 state와 다르면", "admin_oauth_state=other"],
+    ])("%s 인증을 시도하지 않고 AUTH_FAILED로 알린다", async (_n, cookie) => {
+      const req = request(app.getHttpServer()).get(
+        "/admin/auth/oauth/google/callback?code=c1&state=s1",
+      );
+      if (cookie) req.set("Cookie", cookie);
+
+      await req
+        .expect(302)
+        .expect(
+          "Location",
+          "https://admin.example.com/login?error=AUTH_FAILED",
+        );
+
+      expect(service.signIn).not.toHaveBeenCalled();
+    });
+
+    it.each(["성공", "실패"])("%s 뒤에는 state 쿠키를 지운다", async (kind) => {
+      if (kind === "실패") {
+        service.signIn.mockRejectedValue(new AdminOAuthError("ACCESS_DENIED"));
+      }
+
+      const response = await request(app.getHttpServer())
+        .get("/admin/auth/oauth/google/callback?code=c1&state=s1")
+        .set("Cookie", "admin_oauth_state=s1")
+        .expect(302);
+
+      const cookies = response.headers["set-cookie"] as unknown as string[];
+      const cleared = cookies.find((c) => c.startsWith("admin_oauth_state="));
+      expect(cleared).toMatch(/admin_oauth_state=;/);
+      expect(cleared).toContain("Path=/admin/auth/oauth");
     });
 
     it("지원하지 않는 공급자는 404이고 인증을 시도하지 않는다", async () => {

@@ -30,3 +30,30 @@ export const adminAppRedirectUrl = (
   if (error) url.searchParams.set("error", error);
   return url.toString();
 };
+
+/**
+ * 시작한 브라우저와 콜백을 묶는 state 쿠키입니다. 공격자가 자기 계정으로 시작한 콜백 주소를
+ * 피해자가 열어도 피해자 브라우저에는 이 쿠키가 없어 거절됩니다. 공급자에서 돌아오는 최상위
+ * 이동에 실려야 하므로 SameSite=Lax입니다.
+ */
+export const ADMIN_OAUTH_STATE_COOKIE = "admin_oauth_state";
+export const adminOAuthStateCookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/admin/auth/oauth",
+} as const;
+export const ADMIN_OAUTH_STATE_COOKIE_MAX_AGE_MS = 10 * 60 * 1000;
+
+export const readCookie = (
+  header: string | undefined,
+  name: string,
+): string | undefined => {
+  for (const part of (header ?? "").split(";")) {
+    const index = part.indexOf("=");
+    if (index > 0 && part.slice(0, index).trim() === name) {
+      return part.slice(index + 1).trim();
+    }
+  }
+  return undefined;
+};
