@@ -20,12 +20,16 @@ const requiredEnv = (name: string): string => {
   return value;
 };
 
+/** 콜백은 항상 이 API 자신을 가리키므로 AUTH_ISSUER의 origin에서 만듭니다. */
+const callbackUrl = (provider: AdminOAuthProvider): string =>
+  `${new URL(requiredEnv("AUTH_ISSUER")).origin}/admin/auth/oauth/${provider}/callback`;
+
 const providerConfig = (provider: AdminOAuthProvider): ProviderConfig => {
-  const prefix = `ADMIN_${provider.toUpperCase()}`;
+  const prefix = provider.toUpperCase();
   return {
     clientId: requiredEnv(`${prefix}_OAUTH_CLIENT_ID`),
     clientSecret: requiredEnv(`${prefix}_OAUTH_CLIENT_SECRET`),
-    redirectUri: requiredEnv(`${prefix}_REDIRECT_URI`),
+    redirectUri: callbackUrl(provider),
   };
 };
 
