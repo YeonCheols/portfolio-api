@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: local
     container_name: portfolio-api-local
     ports:
       - "8080:8080"
