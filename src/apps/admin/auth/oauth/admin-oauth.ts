@@ -1,3 +1,5 @@
+import { isLocalAdminApp } from "../admin-session";
+
 export const ADMIN_OAUTH_PROVIDERS = ["google", "github"] as const;
 export type AdminOAuthProvider = (typeof ADMIN_OAUTH_PROVIDERS)[number];
 
@@ -39,7 +41,7 @@ export const adminAppRedirectUrl = (
 export const ADMIN_OAUTH_STATE_COOKIE = "admin_oauth_state";
 export const adminOAuthStateCookieOptions = {
   httpOnly: true,
-  secure: true,
+  secure: !isLocalAdminApp(),
   sameSite: "lax",
   path: "/admin/auth/oauth",
 } as const;
