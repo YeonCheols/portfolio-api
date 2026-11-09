@@ -121,10 +121,8 @@ OAuth state는 앱 ID와 callback URI에 바인딩해 `AuthHistory`에 해시로
 | 변수 | 설명 |
 | --- | --- |
 | `ADMIN_APP_URL` | 관리자 앱 주소(예: `https://admin.ycseng.com`). 결과 리다이렉트의 기준입니다 |
-| `ADMIN_GOOGLE_OAUTH_CLIENT_ID`, `ADMIN_GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth client |
-| `ADMIN_GOOGLE_REDIRECT_URI` | `https://api.ycseng.com/admin/auth/oauth/google/callback` |
-| `ADMIN_GITHUB_OAUTH_CLIENT_ID`, `ADMIN_GITHUB_OAUTH_CLIENT_SECRET` | GitHub OAuth App (MCP·portfolio용 앱과 별도로 만듭니다) |
-| `ADMIN_GITHUB_REDIRECT_URI` | `https://api.ycseng.com/admin/auth/oauth/github/callback` |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth client |
+| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | MCP와 공용 GitHub 앱. 콜백 URL 목록에 `{AUTH_ISSUER의 origin}/admin/auth/oauth/github/callback`을 등록합니다 |
 
 ### 환경 변수 (메일 발송)
 

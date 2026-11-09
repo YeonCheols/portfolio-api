@@ -17,10 +17,9 @@ describe("AdminAuthModule OAuth 연결", () => {
   beforeAll(async () => {
     process.env.JWT_SECRET = "module-jwt-secret";
     process.env.ADMIN_APP_URL = "https://admin.example.com";
-    process.env.ADMIN_GOOGLE_OAUTH_CLIENT_ID = "google-client";
-    process.env.ADMIN_GOOGLE_OAUTH_CLIENT_SECRET = "google-secret";
-    process.env.ADMIN_GOOGLE_REDIRECT_URI =
-      "https://api.example.com/admin/auth/oauth/google/callback";
+    process.env.AUTH_ISSUER = "https://api.example.test/auth";
+    process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client";
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET = "google-secret";
     const moduleRef = await Test.createTestingModule({
       imports: [PrismaModule, AdminAuthModule],
     })

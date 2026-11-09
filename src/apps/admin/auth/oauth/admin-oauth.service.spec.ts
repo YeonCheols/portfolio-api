@@ -11,6 +11,9 @@ const json = (body: unknown, ok = true) =>
     json: () => Promise.resolve(body),
   }) as Response;
 
+const GOOGLE_CALLBACK =
+  "https://api.example.test/admin/auth/oauth/google/callback";
+
 describe("AdminOAuthService", () => {
   const env = { ...process.env };
   const prisma = {
@@ -25,14 +28,11 @@ describe("AdminOAuthService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.JWT_SECRET = "test-secret";
-    process.env.ADMIN_GOOGLE_OAUTH_CLIENT_ID = "google-client";
-    process.env.ADMIN_GOOGLE_OAUTH_CLIENT_SECRET = "google-secret";
-    process.env.ADMIN_GOOGLE_REDIRECT_URI =
-      "https://api.example.com/admin/auth/oauth/google/callback";
-    process.env.ADMIN_GITHUB_OAUTH_CLIENT_ID = "github-client";
-    process.env.ADMIN_GITHUB_OAUTH_CLIENT_SECRET = "github-secret";
-    process.env.ADMIN_GITHUB_REDIRECT_URI =
-      "https://api.example.com/admin/auth/oauth/github/callback";
+    process.env.AUTH_ISSUER = "https://api.example.test/auth";
+    process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client";
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET = "google-secret";
+    process.env.GITHUB_OAUTH_CLIENT_ID = "github-client";
+    process.env.GITHUB_OAUTH_CLIENT_SECRET = "github-secret";
     oauthState.issue.mockResolvedValue("issued-state");
     oauthState.consume.mockResolvedValue({ id: "history-1" });
     prisma.adminUser.findFirst.mockResolvedValue(admin);
@@ -59,16 +59,13 @@ describe("AdminOAuthService", () => {
       );
       expect(Object.fromEntries(url.searchParams)).toMatchObject({
         client_id: "google-client",
-        redirect_uri: process.env.ADMIN_GOOGLE_REDIRECT_URI,
+        redirect_uri: GOOGLE_CALLBACK,
         response_type: "code",
         scope: "openid email",
         state: "issued-state",
       });
       expect(url.searchParams.get("client_secret")).toBeNull();
-      expect(oauthState.issue).toHaveBeenCalledWith(
-        "admin",
-        process.env.ADMIN_GOOGLE_REDIRECT_URI,
-      );
+      expect(oauthState.issue).toHaveBeenCalledWith("admin", GOOGLE_CALLBACK);
     });
 
     it("GitHub는 검증된 이메일을 읽을 수 있는 범위로 시작한다", async () => {
@@ -82,10 +79,10 @@ describe("AdminOAuthService", () => {
     });
 
     it("공급자 설정이 없으면 state를 만들지 않고 실패한다", async () => {
-      delete process.env.ADMIN_GOOGLE_OAUTH_CLIENT_ID;
+      delete process.env.GOOGLE_OAUTH_CLIENT_ID;
 
       await expect(service.getAuthorizationUrl("google")).rejects.toThrow(
-        "ADMIN_GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_ID",
       );
       expect(oauthState.issue).not.toHaveBeenCalled();
     });
@@ -117,7 +114,7 @@ describe("AdminOAuthService", () => {
         client_id: "google-client",
         client_secret: "google-secret",
         grant_type: "authorization_code",
-        redirect_uri: process.env.ADMIN_GOOGLE_REDIRECT_URI,
+        redirect_uri: GOOGLE_CALLBACK,
       });
     });
 
