@@ -43,4 +43,47 @@ describe("admin-session", () => {
       domain: ".ycseng.com",
     });
   });
+
+  describe("관리자 앱이 localhost일 때", () => {
+    const originalAppUrl = process.env.ADMIN_APP_URL;
+
+    afterEach(() => {
+      if (originalAppUrl === undefined) delete process.env.ADMIN_APP_URL;
+      else process.env.ADMIN_APP_URL = originalAppUrl;
+      jest.resetModules();
+    });
+
+    const loadCookies = (appUrl: string | undefined) => {
+      if (appUrl === undefined) delete process.env.ADMIN_APP_URL;
+      else process.env.ADMIN_APP_URL = appUrl;
+      jest.resetModules();
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require("./admin-session") as typeof import("./admin-session");
+    };
+
+    it("도메인 없는 lax 쿠키를 쓴다", () => {
+      const { adminAuthCookieOptions: options } = loadCookies(
+        "http://localhost:5001",
+      );
+
+      expect(options).toEqual({
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        path: "/",
+      });
+    });
+
+    it("운영 주소나 값이 없으면 운영 쿠키를 그대로 쓴다", () => {
+      for (const appUrl of ["https://admin.ycseng.com", undefined]) {
+        const { adminAuthCookieOptions: options } = loadCookies(appUrl);
+
+        expect(options).toMatchObject({
+          secure: true,
+          sameSite: "none",
+          domain: ".ycseng.com",
+        });
+      }
+    });
+  });
 });
