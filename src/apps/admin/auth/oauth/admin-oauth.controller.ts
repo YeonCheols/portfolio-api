@@ -15,6 +15,7 @@ import {
   adminAuthCookieOptions,
 } from "../admin-session";
 import {
+  ADMIN_OAUTH_APP_COOKIE,
   ADMIN_OAUTH_STATE_COOKIE,
   ADMIN_OAUTH_STATE_COOKIE_MAX_AGE_MS,
   AdminOAuthError,
@@ -23,8 +24,18 @@ import {
   adminOAuthStateCookieOptions,
   isAdminOAuthProvider,
   readCookie,
+  resolveAdminAppUrl,
 } from "./admin-oauth";
 import { AdminOAuthService } from "./admin-oauth.service";
+
+/** res.cookie가 URL 인코딩해 담은 값을 되돌린다. 깨진 값은 없는 것으로 본다. */
+const decodeCookieValue = (value: string | undefined): string | undefined => {
+  try {
+    return value === undefined ? undefined : decodeURIComponent(value);
+  } catch {
+    return undefined;
+  }
+};
 
 const requireProvider = (value: string): AdminOAuthProvider => {
   if (!isAdminOAuthProvider(value)) throw new NotFoundException();
@@ -40,12 +51,18 @@ export class AdminOAuthController {
   @ApiOperation({ summary: "관리자 OAuth 로그인 시작 (Google, GitHub)" })
   async authorize(
     @Param("provider") provider: string,
+    @Query("app") app: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     const { url, state } = await this.service.getAuthorizationUrl(
       requireProvider(provider),
     );
     res.cookie(ADMIN_OAUTH_STATE_COOKIE, state, {
+      ...adminOAuthStateCookieOptions,
+      maxAge: ADMIN_OAUTH_STATE_COOKIE_MAX_AGE_MS,
+    });
+    // 시작한 관리자 앱 주소(로컬 관리자 등)를 콜백까지 들고 간다. 허용 범위 밖의 값은 기본 주소로 바뀐다
+    res.cookie(ADMIN_OAUTH_APP_COOKIE, resolveAdminAppUrl(app), {
       ...adminOAuthStateCookieOptions,
       maxAge: ADMIN_OAUTH_STATE_COOKIE_MAX_AGE_MS,
     });
@@ -67,14 +84,19 @@ export class AdminOAuthController {
       req.headers.cookie,
       ADMIN_OAUTH_STATE_COOKIE,
     );
+    // 쿠키에 담긴 값도 한 번 더 검증한다. 허용 범위 밖이면 기본 관리자 앱 주소가 된다
+    const appUrl = resolveAdminAppUrl(
+      decodeCookieValue(readCookie(req.headers.cookie, ADMIN_OAUTH_APP_COOKIE)),
+    );
     // 일회용 state는 한 번 쓰고 끝나므로 결과와 상관없이 브라우저의 쿠키도 지운다
     res.clearCookie(ADMIN_OAUTH_STATE_COOKIE, adminOAuthStateCookieOptions);
+    res.clearCookie(ADMIN_OAUTH_APP_COOKIE, adminOAuthStateCookieOptions);
     if (query.error) {
-      res.redirect(302, adminAppRedirectUrl("/login", "ACCESS_DENIED"));
+      res.redirect(302, adminAppRedirectUrl("/login", "ACCESS_DENIED", appUrl));
       return;
     }
     if (!query.code || !query.state || browserState !== query.state) {
-      res.redirect(302, adminAppRedirectUrl("/login", "AUTH_FAILED"));
+      res.redirect(302, adminAppRedirectUrl("/login", "AUTH_FAILED", appUrl));
       return;
     }
 
@@ -88,10 +110,10 @@ export class AdminOAuthController {
         ...adminAuthCookieOptions,
         maxAge: ADMIN_ACCESS_TOKEN_MAX_AGE_MS,
       });
-      res.redirect(302, adminAppRedirectUrl("/"));
+      res.redirect(302, adminAppRedirectUrl("/", undefined, appUrl));
     } catch (error) {
       if (!(error instanceof AdminOAuthError)) throw error;
-      res.redirect(302, adminAppRedirectUrl("/login", error.code));
+      res.redirect(302, adminAppRedirectUrl("/login", error.code, appUrl));
     }
   }
 }

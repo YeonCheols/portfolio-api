@@ -75,6 +75,100 @@ describe("AdminOAuthController", () => {
     });
   });
 
+  describe("관리자 앱 주소(app)", () => {
+    const appCookie = (response: request.Response) =>
+      (response.headers["set-cookie"] as unknown as string[]).find((c) =>
+        c.startsWith("admin_oauth_app="),
+      );
+
+    it("시작한 관리자 앱(localhost)의 origin을 단기 쿠키로 들고 간다", async () => {
+      const response = await request(app.getHttpServer())
+        .get(
+          "/admin/auth/oauth/github/authorize?app=http%3A%2F%2Flocalhost%3A5001%2Flogin",
+        )
+        .expect(302);
+
+      const cookie = appCookie(response);
+      expect(cookie).toContain(
+        "admin_oauth_app=http%3A%2F%2Flocalhost%3A5001;",
+      );
+      expect(cookie).toContain("HttpOnly");
+      expect(cookie).toContain("Path=/admin/auth/oauth");
+      expect(cookie).toMatch(/Max-Age=600/);
+    });
+
+    it("허용 범위 밖의 주소는 기본 관리자 앱 주소로 바꿔 담는다", async () => {
+      const response = await request(app.getHttpServer())
+        .get(
+          "/admin/auth/oauth/github/authorize?app=https%3A%2F%2Fevil.example.com",
+        )
+        .expect(302);
+
+      expect(appCookie(response)).toContain(
+        "admin_oauth_app=https%3A%2F%2Fadmin.example.com;",
+      );
+    });
+
+    it("콜백 성공 시 쿠키에 담긴 관리자 앱으로 이동하고 쿠키를 지운다", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/admin/auth/oauth/github/callback?code=c1&state=s1")
+        .set(
+          "Cookie",
+          "admin_oauth_state=s1; admin_oauth_app=http%3A%2F%2Flocalhost%3A5001",
+        )
+        .expect(302)
+        .expect("Location", "http://localhost:5001/");
+
+      const cleared = (
+        response.headers["set-cookie"] as unknown as string[]
+      ).find((c) => c.startsWith("admin_oauth_app=;"));
+      expect(cleared).toBeDefined();
+    });
+
+    it.each(["ACCESS_DENIED", "AUTH_FAILED"] as const)(
+      "%s 실패도 쿠키에 담긴 관리자 앱의 로그인 화면으로 보낸다",
+      async (code) => {
+        service.signIn.mockRejectedValue(new AdminOAuthError(code));
+
+        await request(app.getHttpServer())
+          .get("/admin/auth/oauth/github/callback?code=c1&state=s1")
+          .set(
+            "Cookie",
+            "admin_oauth_state=s1; admin_oauth_app=http%3A%2F%2Flocalhost%3A5001",
+          )
+          .expect(302)
+          .expect("Location", `http://localhost:5001/login?error=${code}`);
+      },
+    );
+
+    it("공급자 거절이나 state 불일치도 같은 관리자 앱으로 알린다", async () => {
+      const cookie =
+        "admin_oauth_state=s1; admin_oauth_app=http%3A%2F%2Flocalhost%3A5001";
+
+      await request(app.getHttpServer())
+        .get("/admin/auth/oauth/github/callback?error=access_denied")
+        .set("Cookie", cookie)
+        .expect(302)
+        .expect("Location", "http://localhost:5001/login?error=ACCESS_DENIED");
+      await request(app.getHttpServer())
+        .get("/admin/auth/oauth/github/callback?code=c1&state=other")
+        .set("Cookie", cookie)
+        .expect(302)
+        .expect("Location", "http://localhost:5001/login?error=AUTH_FAILED");
+    });
+
+    it("변조된 쿠키 값은 기본 관리자 앱 주소로 돌린다", async () => {
+      await request(app.getHttpServer())
+        .get("/admin/auth/oauth/github/callback?code=c1&state=s1")
+        .set(
+          "Cookie",
+          "admin_oauth_state=s1; admin_oauth_app=https%3A%2F%2Fevil.example.com",
+        )
+        .expect(302)
+        .expect("Location", "https://admin.example.com/");
+    });
+  });
+
   describe("GET :provider/callback", () => {
     it("성공하면 기존 관리자 쿠키를 심고 관리자 앱 루트로 이동한다", async () => {
       const response = await request(app.getHttpServer())
