@@ -51,6 +51,9 @@ describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
     process.env.AUTH_PRIVATE_KEY = keys.privateKey
       .export({ type: "pkcs8", format: "pem" })
       .toString();
+    process.env.MCP_AUTH_SERVICE_TOKEN = "integration-mcp-service-token";
+    process.env.PORTFOLIO_AUTH_SERVICE_TOKEN =
+      "integration-obsolete-portfolio-token";
     process.env.AUTH_ISSUER = "https://integration.invalid/auth";
     process.env.SERVICE_OAUTH_CLIENT_ID = clientId;
     process.env.SERVICE_OAUTH_CLIENT_SECRET = clientSecret;
@@ -225,5 +228,41 @@ describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
     await expect(
       prisma.projectTag.count({ where: { project: { slug } } }),
     ).resolves.toBe(2);
+  });
+  it("비MCP 서버 인증은 auth:manage OAuth로만 통과하고 MCP 고정 인증과 프로젝트 권한은 유지한다", async () => {
+    const issued = await request(app.getHttpServer())
+      .post("/auth/token")
+      .set("Authorization", basic())
+      .type("form")
+      .send({ grant_type: "client_credentials", scope: "auth:manage" })
+      .expect(200);
+    const accessToken = issued.body.access_token as string;
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ client_id: "portfolio" })
+      .expect(400);
+    for (const rejected of [token, "integration-obsolete-portfolio-token"]) {
+      await request(app.getHttpServer())
+        .post("/auth/refresh")
+        .set("Authorization", `Bearer ${rejected}`)
+        .send({ client_id: "portfolio" })
+        .expect(401);
+    }
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .send({ client_id: "portfolio" })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("Authorization", "Bearer integration-mcp-service-token")
+      .send({ client_id: "mcp" })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ client_id: "mcp" })
+      .expect(401);
+    await save(body, accessToken).expect(401);
   });
 });

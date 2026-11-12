@@ -158,7 +158,8 @@ export class AuthService {
     ) {
       throw new UnauthorizedException({ error: "invalid_client" });
     }
-    if (scope !== undefined && scope !== "project:write")
+    const grantedScope = scope ?? "project:write";
+    if (!["project:write", "auth:manage"].includes(grantedScope))
       throw new BadRequestException({ error: "invalid_scope" });
     try {
       const audience = requiredEnv("SERVICE_OAUTH_AUDIENCE");
@@ -171,13 +172,13 @@ export class AuthService {
           oauthClientId: clientId,
           userId: null,
           audience,
-          scope: "project:write",
+          scope: grantedScope,
           status: AuthHistoryStatus.authenticated,
           expiresAt,
         },
       });
       const accessToken = sign(
-        { scope: "project:write", client_id: clientId, sid: history.id },
+        { scope: grantedScope, client_id: clientId, sid: history.id },
         privateKey,
         {
           algorithm: "RS256",
@@ -192,7 +193,7 @@ export class AuthService {
         access_token: accessToken,
         token_type: "Bearer",
         expires_in: 900,
-        scope: "project:write",
+        scope: grantedScope,
       };
     } catch {
       throw new ServiceUnavailableException(
@@ -202,6 +203,13 @@ export class AuthService {
   }
 
   async validateProjectServiceToken(token: string): Promise<void> {
+    return this.validateOAuthServiceToken(token, "project:write");
+  }
+
+  async validateOAuthServiceToken(
+    token: string,
+    requiredScope: "project:write" | "auth:manage",
+  ): Promise<void> {
     const clientId = process.env.SERVICE_OAUTH_CLIENT_ID;
     const audience = process.env.SERVICE_OAUTH_AUDIENCE;
     if (!clientId?.trim() || !audience?.trim())
@@ -217,7 +225,7 @@ export class AuthService {
         typeof verified === "string" ||
         verified.sub !== clientId ||
         verified.client_id !== clientId ||
-        verified.scope !== "project:write" ||
+        verified.scope !== requiredScope ||
         typeof verified.sid !== "string" ||
         typeof verified.exp !== "number" ||
         typeof verified.iat !== "number" ||
@@ -241,7 +249,7 @@ export class AuthService {
       history.oauthClientId !== clientId ||
       history.userId !== null ||
       history.audience !== audience ||
-      history.scope !== "project:write" ||
+      history.scope !== requiredScope ||
       history.status !== AuthHistoryStatus.authenticated ||
       history.revokedAt !== null ||
       history.expiresAt <= new Date()
@@ -331,7 +339,7 @@ export class AuthService {
         "client_secret_basic",
         "client_secret_post",
       ],
-      scopes_supported: ["resume:use", "project:write"],
+      scopes_supported: ["resume:use", "project:write", "auth:manage"],
     };
   }
 
@@ -508,12 +516,8 @@ export class AuthService {
     clientId: AuthClientId,
     token: string | undefined,
   ): void {
-    const expected =
-      process.env[
-        clientId === "portfolio"
-          ? "PORTFOLIO_AUTH_SERVICE_TOKEN"
-          : "MCP_AUTH_SERVICE_TOKEN"
-      ];
+    if (clientId !== "mcp") throw new UnauthorizedException();
+    const expected = process.env.MCP_AUTH_SERVICE_TOKEN;
     if (!expected?.trim() || !token) throw new UnauthorizedException();
     const actualDigest = createHash("sha256").update(token).digest();
     const expectedDigest = createHash("sha256").update(expected).digest();

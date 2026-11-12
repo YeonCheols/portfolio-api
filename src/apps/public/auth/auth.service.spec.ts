@@ -67,13 +67,13 @@ describe("AuthService", () => {
     );
   });
 
-  it("앱별 서버 자격 증명을 분리해 검증한다", () => {
+  it("고정 서비스 토큰은 MCP에만 허용하고 남아 있는 portfolio 설정은 사용하지 않는다", () => {
     expect(() =>
       service.validateServiceToken("mcp", "mcp-service-secret"),
     ).not.toThrow();
     expect(() =>
       service.validateServiceToken("portfolio", "portfolio-service-secret"),
-    ).not.toThrow();
+    ).toThrow(UnauthorizedException);
     expect(() =>
       service.validateServiceToken("mcp", "portfolio-service-secret"),
     ).toThrow(UnauthorizedException);
@@ -88,7 +88,7 @@ describe("AuthService", () => {
       revocation_endpoint: "https://api.example.com/auth/oauth/revoke",
       jwks_uri: "https://api.example.com/auth/.well-known/jwks.json",
       code_challenge_methods_supported: ["S256"],
-      scopes_supported: ["resume:use", "project:write"],
+      scopes_supported: ["resume:use", "project:write", "auth:manage"],
       grant_types_supported: [
         "authorization_code",
         "refresh_token",
@@ -761,6 +761,7 @@ describe("공통 서비스 OAuth", () => {
   let service: AuthService;
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.authHistory.findUnique.mockReset();
     process.env.SERVICE_OAUTH_CLIENT_ID = "project-service";
     process.env.SERVICE_OAUTH_CLIENT_SECRET = "fixture-secret";
     process.env.SERVICE_OAUTH_AUDIENCE =
@@ -774,6 +775,53 @@ describe("공통 서비스 OAuth", () => {
   });
   afterEach(() => {
     process.env = { ...env };
+  });
+  it("동일 OAuth 자격으로 auth:manage 토큰을 발급하고 프로젝트 쓰기 권한과 섞이지 않게 검증한다", async () => {
+    const response = await service.issueServiceAccessToken(
+      "project-service",
+      "fixture-secret",
+      "auth:manage",
+    );
+    expect(response).toMatchObject({
+      scope: "auth:manage",
+      expires_in: 900,
+      token_type: "Bearer",
+    });
+    const active = {
+      clientId: "service",
+      oauthClientId: "project-service",
+      userId: null,
+      audience: process.env.SERVICE_OAUTH_AUDIENCE,
+      scope: "auth:manage",
+      status: "authenticated",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 900000),
+    };
+    prisma.authHistory.findUnique.mockResolvedValue(active);
+    await expect(
+      service.validateOAuthServiceToken(response.access_token, "auth:manage"),
+    ).resolves.toBeUndefined();
+    await expect(
+      service.validateProjectServiceToken(response.access_token),
+    ).rejects.toThrow(UnauthorizedException);
+    const project = await service.issueServiceAccessToken(
+      "project-service",
+      "fixture-secret",
+      "project:write",
+    );
+    await expect(
+      service.validateOAuthServiceToken(project.access_token, "auth:manage"),
+    ).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.validateOAuthServiceToken("old-fixed-token", "auth:manage"),
+    ).rejects.toThrow(UnauthorizedException);
+    prisma.authHistory.findUnique.mockResolvedValue({
+      ...active,
+      revokedAt: new Date(),
+    });
+    await expect(
+      service.validateOAuthServiceToken(response.access_token, "auth:manage"),
+    ).rejects.toThrow(UnauthorizedException);
   });
   it("유효한 서비스 JWT라도 활성 서비스 인증 이력과 일치할 때만 프로젝트 쓰기를 허용한다", async () => {
     const response = await service.issueServiceAccessToken(

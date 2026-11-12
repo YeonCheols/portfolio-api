@@ -96,7 +96,7 @@ pnpm prisma:migrate:resolve --applied 20261030150000_shared_auth_token_lifecycle
 
 MCP 클라이언트용 표준 OAuth endpoint는 `GET /.well-known/oauth-authorization-server/auth`, `POST /auth/register`, `GET /auth/authorize`, `GET /auth/github/callback`, `POST /auth/token`, `POST /auth/oauth/revoke`입니다. authorization code는 PKCE S256, 등록 redirect URI, resource, scope에 바인딩하고 `AuthHistory`에서 state와 code 소비를 관리합니다. 공개 client ID는 서버 비밀값으로 서명하며 GitHub client secret과 서비스 자격 증명을 공개하지 않습니다. Access token이 1시간 후 만료되면 OAuth client가 refresh grant를 요청하고, portfolio-api가 refresh token을 회전해 새 access/refresh token을 발급합니다. MCP 서버는 refresh token을 보유하거나 갱신하지 않습니다.
 
-기존 `POST /auth/authorize`, `/auth/callback`, `/auth/refresh`, `/auth/revoke`는 portfolio와 MCP 서버가 호출하는 서비스 간 인증 API로 유지합니다. `POST /auth/introspect`도 `MCP_AUTH_SERVICE_TOKEN`이 있는 MCP 서버만 호출할 수 있으며, MCP 서버가 전달한 access token의 JWT claim과 연결된 `AuthHistory` 상태를 확인해 현재 유효성(`active`)을 반환합니다. 요청 본문은 `client_id`를 `portfolio` 또는 `mcp`로 지정하며, 서버 자격 증명은 `PORTFOLIO_AUTH_SERVICE_TOKEN`과 `MCP_AUTH_SERVICE_TOKEN`으로 앱별 분리합니다. 두 앱은 공용 `User`와 GitHub `UserIdentity`를 사용하지만, 각 로그인 세션은 `clientId`, audience, scope로 분리됩니다. 인증 이력과 로그인 세션은 `AuthHistory`에서 관리하고, 발급된 refresh token은 `UserToken`에 토큰 해시 단위로 관리합니다.
+기존 `POST /auth/authorize`, `/auth/callback`, `/auth/refresh`, `/auth/revoke`는 portfolio와 MCP 서버가 호출하는 인증 API로 유지합니다. 요청 본문 `client_id=mcp`는 기존 `MCP_AUTH_SERVICE_TOKEN`으로 검사하고, `client_id=portfolio`는 공통 OAuth client가 발급받은 `auth:manage` access token으로 검사합니다. `PORTFOLIO_AUTH_SERVICE_TOKEN`은 더 이상 읽거나 인증에 사용하지 않습니다. 로그인 시작 전에도 호출할 수 있도록 사용자 access token 대신 서버용 client_credentials 토큰을 사용합니다. `POST /auth/introspect`는 기존대로 MCP 서비스 토큰이 있는 MCP 서버만 호출하며, 전달된 사용자 access token의 JWT claim과 연결된 `AuthHistory` 상태를 확인해 현재 유효성(`active`)을 반환합니다. 두 앱은 공용 `User`와 GitHub `UserIdentity`를 사용하지만, 각 로그인 세션은 `clientId`, audience, scope로 분리됩니다. 인증 이력과 로그인 세션은 `AuthHistory`에서 관리하고, 발급된 refresh token은 `UserToken`에 토큰 해시 단위로 관리합니다.
 
 각 앱은 GitHub OAuth client ID/secret, callback URI, 허용 사용자 ID 목록을 별도 환경변수로 설정합니다. portfolio는 `PORTFOLIO_GITHUB_OAUTH_CLIENT_ID`, `PORTFOLIO_GITHUB_OAUTH_CLIENT_SECRET`, `PORTFOLIO_GITHUB_REDIRECT_URI`, `PORTFOLIO_AUTHORIZED_GITHUB_USER_IDS`, `PORTFOLIO_AUTH_AUDIENCE`를 사용합니다. MCP는 `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `MCP_GITHUB_REDIRECT_URI`, `MCP_AUTHORIZED_GITHUB_USER_IDS`, `MCP_RESOURCE_URL`을 사용합니다. MCP OAuth를 API가 직접 제공하도록 전환할 때 `MCP_GITHUB_REDIRECT_URI`와 GitHub OAuth App callback을 `https://api.ycseng.com/auth/github/callback`으로 맞춰야 합니다. API가 발급한 1시간 RS256 액세스 토큰과 30일 refresh token은 앱별 scope(`portfolio:use`, `resume:use`)와 audience에 바인딩됩니다.
 
@@ -217,9 +217,9 @@ Hub, `portfolio2/mcp` 등 서버 측 호출자는 같은 OAuth 서비스 자격�
 - `SERVICE_OAUTH_AUDIENCE`: 프로젝트 서비스 토큰의 audience입니다.
 - 기존 `AUTH_ISSUER`와 `AUTH_PRIVATE_KEY`를 그대로 사용합니다.
 
-`POST /auth/token`에 `grant_type=client_credentials`, `scope=project:write`를 전달합니다. 권장 client 인증은 HTTP Basic이며 ID와 secret을 form 인코딩한 뒤 `ID:SECRET`을 base64 인코딩합니다. 본문의 `client_id`, `client_secret`을 사용하는 `client_secret_post`도 지원하며 두 방식을 동시에 보내면 거부합니다. 자격 증명은 서버 또는 Actions의 비밀 설정에서만 사용합니다.
+`POST /auth/token`에 `grant_type=client_credentials`와 필요한 scope를 전달합니다. 프로젝트 쓰기는 `project:write`, 비MCP 서버의 인증 처리 API는 `auth:manage`를 사용합니다. scope를 생략하면 기존 계약대로 `project:write`입니다. 두 권한은 서로 대체할 수 없으며 사용자 OAuth scope인 `resume:use` 등은 이 grant로 발급하지 않습니다. 권장 client 인증은 HTTP Basic이며 ID와 secret을 form 인코딩한 뒤 `ID:SECRET`을 base64 인코딩합니다. 본문의 `client_id`, `client_secret`을 사용하는 `client_secret_post`도 지원하며 두 방식을 동시에 보내면 거부합니다. 자격 증명은 서버 또는 Actions의 비밀 설정에서만 사용합니다.
 
-응답은 `access_token`, `token_type: Bearer`, `expires_in: 900`, `scope: project:write`입니다. 사용자 로그인과 refresh token은 필요하지 않으며 실행마다 새 토큰을 발급받습니다. 기존 `AuthHistory`에 사용자 없이 서비스 세션을 기록하고 서명·issuer·audience·scope·만료·활성 세션을 함께 검증합니다. client 자격이 미설정이면 서비스 토큰 발급을 거부합니다.
+응답은 `access_token`, `token_type: Bearer`, `expires_in: 900`, `scope`는 요청한 `project:write` 또는 `auth:manage`입니다. 사용자 로그인과 refresh token은 필요하지 않으며 실행마다 새 토큰을 발급받습니다. 기존 `AuthHistory`에 사용자 없이 서비스 세션을 기록하고 서명·issuer·audience·scope·만료·활성 세션을 함께 검증합니다. client 자격이 미설정이면 서비스 토큰 발급을 거부합니다.
 
 ### 생성·업데이트
 
@@ -238,3 +238,11 @@ Hub, `portfolio2/mcp` 등 서버 측 호출자는 같은 OAuth 서비스 자격�
 ### 최근 변경 표시
 
 공개 목록·검색·상세·태그별 조회와 서비스 저장 응답의 프로젝트에 `isRecent`를 제공합니다. 기존 updatedAt부터 응답 시각까지 0 이상 7일 이하이면 true이며 정확히 7일을 포함하고 미래 시각은 제외합니다. 생성과 업데이트를 별도로 구분하지 않으며 기존 프로젝트의 목록 순서는 변경하지 않습니다. 실제 Hub 콘텐츠 변경 시 updatedAt을 명시적으로 갱신하고 동일 콘텐츠 재전송으로 최근 표시 기간을 늘리지 않습니다.
+
+### 비MCP 고정 서비스 토큰 제거
+
+비MCP 서버 호출은 별도 고정 Bearer token을 공유하지 않고 기존 공통 OAuth 자격으로 `auth:manage` access token을 발급받습니다. 새로운 client ID·secret이나 만료 없는 서비스 토큰을 앱마다 추가하지 않습니다. `SERVICE_OAUTH_CLIENT_ID`, `SERVICE_OAUTH_CLIENT_SECRET`, `SERVICE_OAUTH_AUDIENCE`와 기존 서명 키·issuer를 그대로 재사용하고, 15분 만료·서명·audience·scope·활성/폐기 이력을 검증합니다.
+
+프로젝트 API는 계속 `project:write`만 허용하며 Hub의 요청 방식은 바뀌지 않습니다. `MCP_AUTH_SERVICE_TOKEN`, `RESUME_MODEL_SETTING_TOKEN`과 이를 사용하는 MCP의 로그인·introspection·모델 설정 경로는 유지합니다. MCP OAuth client ID 서명에 사용하는 기존 키도 변경하지 않습니다. 사용자 OAuth authorization_code·PKCE·refresh token 흐름과 DB 스키마도 변경하지 않습니다.
+
+API 코드에서 이전 portfolio 고정 토큰은 인증되지 않습니다. 구형 portfolio 서버 호출자가 있다면 먼저/함께 client_credentials와 `auth:manage`로 전환해야 합니다. 정적 설정 원본의 폐기된 키 정리는 portfolio-config의 별도 작업이며, 이 변경만으로 운영 설정값이나 배포를 수정하지 않습니다.
