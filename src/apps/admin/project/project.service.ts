@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -101,6 +103,72 @@ export class AdminProjectService {
     for (const tag of tagsToAdd) {
       await tx.projectTag.create({ data: { projectId, tagId: tag.id } });
     }
+  }
+
+  async upsert(
+    data: Omit<AdminProjectCreateRequest, "linkDemo" | "linkGithub"> & {
+      linkDemo?: string | null;
+      linkGithub?: string | null;
+    },
+  ) {
+    const stackNames = [...new Set(this.parseStacks(data.stacks))];
+    const content = {
+      title: data.title,
+      description: data.description,
+      image: data.image,
+      content: data.content ?? null,
+      stacks: JSON.stringify(stackNames),
+      linkDemo: data.linkDemo ?? null,
+      linkGithub: data.linkGithub ?? null,
+      isShow: true,
+    };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const existing = await tx.project.findUnique({
+              where: { slug: data.slug },
+              include: { projectTags: { include: { tag: true } } },
+            });
+            if (
+              existing &&
+              (Object.keys(content) as (keyof typeof content)[]).every(
+                (key) => existing[key] === content[key],
+              ) &&
+              JSON.stringify(
+                existing.projectTags
+                  .map((relation) => relation.tag.name)
+                  .sort(),
+              ) === JSON.stringify([...stackNames].sort())
+            ) {
+              const { projectTags, ...project } = existing;
+              void projectTags;
+              return { operation: "unchanged", project };
+            }
+            const project = await tx.project.upsert({
+              where: { slug: data.slug },
+              create: { slug: data.slug, ...content },
+              update: { ...content, updatedAt: new Date() },
+            });
+            await this.syncProjectTags(tx, project.id, stackNames);
+            return { operation: existing ? "updated" : "created", project };
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          ["P2034", "P2002"].includes(error.code)
+        ) {
+          if (attempt < 2) continue;
+          throw new ConflictException(
+            "프로젝트 저장이 충돌했습니다. 다시 요청해 주세요.",
+          );
+        }
+        throw new ServiceUnavailableException("프로젝트를 저장할 수 없습니다.");
+      }
+    }
+    throw new ServiceUnavailableException("프로젝트를 저장할 수 없습니다.");
   }
 
   async create(data: AdminProjectCreateRequest) {

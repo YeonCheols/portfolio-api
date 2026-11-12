@@ -5,6 +5,7 @@ import { ProjectService } from "./project.service";
 
 describe("ProjectService", () => {
   let service: ProjectService;
+  const old = new Date("2026-01-01T00:00:00Z");
   const prisma = {
     project: {
       findMany: jest.fn(),
@@ -28,13 +29,35 @@ describe("ProjectService", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    jest.useFakeTimers({ now: new Date("2026-11-12T00:00:00Z") });
     const moduleRef = await Test.createTestingModule({
       providers: [ProjectService, { provide: PrismaService, useValue: prisma }],
     }).compile();
     service = moduleRef.get(ProjectService);
   });
 
+  afterEach(() => jest.useRealTimers());
+
   describe("findAll", () => {
+    it("최근 생성된 프로젝트의 목록·검색·상세에 같은 최근 표시를 추가한다", async () => {
+      const project = {
+        id: 1,
+        slug: "new-project",
+        updatedAt: new Date(),
+        order: 16,
+      };
+      prisma.project.findMany.mockResolvedValue([project]);
+      prisma.project.findUnique.mockResolvedValue(project);
+      prisma.project.count.mockResolvedValue(1);
+      expect(await service.findAll()).toEqual([{ ...project, isRecent: true }]);
+      expect((await service.finedSearch({} as never)).data).toEqual([
+        { ...project, isRecent: true },
+      ]);
+      expect(await service.findOne(project.slug)).toEqual({
+        ...project,
+        isRecent: true,
+      });
+    });
     it("노출 중인 프로젝트만 정렬해서 조회한다", async () => {
       prisma.project.findMany.mockResolvedValue([]);
 
@@ -49,7 +72,10 @@ describe("ProjectService", () => {
 
   describe("finedSearch", () => {
     beforeEach(() => {
-      prisma.project.findMany.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+      prisma.project.findMany.mockResolvedValue([
+        { id: 1, updatedAt: old },
+        { id: 2, updatedAt: old },
+      ]);
       prisma.project.count.mockResolvedValueOnce(5).mockResolvedValueOnce(7);
     });
 
@@ -60,7 +86,10 @@ describe("ProjectService", () => {
         expect.objectContaining({ where: { isShow: true }, skip: 0, take: 10 }),
       );
       expect(result).toEqual({
-        data: [{ id: 1 }, { id: 2 }],
+        data: [
+          { id: 1, updatedAt: old, isRecent: false },
+          { id: 2, updatedAt: old, isRecent: false },
+        ],
         total: 2,
         filteredTotal: 5,
         allTotal: 7,
@@ -157,7 +186,7 @@ describe("ProjectService", () => {
   describe("findProjectsByTag", () => {
     it("태그를 사용하는 노출 프로젝트를 조회하고 projectTags를 태그 정보로 바꾼다", async () => {
       prisma.project.findMany.mockResolvedValue([
-        { id: 1, slug: "p1", projectTags: [{ id: 100, tag }] },
+        { id: 1, slug: "p1", updatedAt: old, projectTags: [{ id: 100, tag }] },
       ]);
 
       const result = await service.findProjectsByTag("React");
@@ -170,14 +199,22 @@ describe("ProjectService", () => {
           },
         }),
       );
-      expect(result).toEqual([{ id: 1, slug: "p1", projectTags: [tag] }]);
+      expect(result).toEqual([
+        {
+          id: 1,
+          slug: "p1",
+          updatedAt: old,
+          isRecent: false,
+          projectTags: [tag],
+        },
+      ]);
     });
 
     it("projectTags가 없으면 빈 배열로 반환한다", async () => {
-      prisma.project.findMany.mockResolvedValue([{ id: 1 }]);
+      prisma.project.findMany.mockResolvedValue([{ id: 1, updatedAt: old }]);
 
       await expect(service.findProjectsByTag("React")).resolves.toEqual([
-        { id: 1, projectTags: [] },
+        { id: 1, updatedAt: old, isRecent: false, projectTags: [] },
       ]);
     });
   });
@@ -185,7 +222,7 @@ describe("ProjectService", () => {
   describe("findProjectsByTags", () => {
     it("태그 중 하나라도 사용하는 노출 프로젝트를 조회한다", async () => {
       prisma.project.findMany.mockResolvedValue([
-        { id: 1, projectTags: [{ id: 100, tag }] },
+        { id: 1, updatedAt: old, projectTags: [{ id: 100, tag }] },
       ]);
 
       const result = await service.findProjectsByTags(["React", "Vue"]);
@@ -198,7 +235,9 @@ describe("ProjectService", () => {
           },
         }),
       );
-      expect(result).toEqual([{ id: 1, projectTags: [tag] }]);
+      expect(result).toEqual([
+        { id: 1, updatedAt: old, isRecent: false, projectTags: [tag] },
+      ]);
     });
   });
 });

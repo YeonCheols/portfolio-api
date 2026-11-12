@@ -14,6 +14,7 @@ import { AuthController } from "./auth.controller";
 describe("AuthController", () => {
   const service = {
     getJwks: jest.fn(),
+    issueServiceAccessToken: jest.fn(),
     registerOAuthClient: jest.fn(),
     startMcpOAuthAuthorization: jest.fn(),
     completeMcpOAuthCallback: jest.fn(),
@@ -30,6 +31,54 @@ describe("AuthController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     controller = new AuthController(service as never);
+  });
+
+  it("HTTP Basic 자격으로 client_credentials를 발급하고 중복 인증은 거부한다", async () => {
+    service.issueServiceAccessToken.mockResolvedValue({
+      access_token: "service-access",
+    });
+    const header =
+      "Basic " +
+      Buffer.from("project-service:fixture-secret").toString("base64");
+    await expect(
+      controller.oauthToken({ grant_type: "client_credentials" }, header),
+    ).resolves.toEqual({ access_token: "service-access" });
+    expect(service.issueServiceAccessToken).toHaveBeenCalledWith(
+      "project-service",
+      "fixture-secret",
+      undefined,
+    );
+    await expect(
+      controller.oauthToken(
+        {
+          grant_type: "client_credentials",
+          client_id: "project-service",
+          client_secret: "fixture-secret",
+        },
+        header,
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("client_credentials 요청을 공통 서비스 토큰 발급으로 전달한다", async () => {
+    service.issueServiceAccessToken.mockResolvedValue({
+      access_token: "service-access",
+      token_type: "Bearer",
+      expires_in: 900,
+      scope: "project:write",
+    });
+    const response = await controller.oauthToken({
+      grant_type: "client_credentials",
+      client_id: "project-service",
+      client_secret: "fixture-secret",
+      scope: "project:write",
+    });
+    expect(response).toMatchObject({ access_token: "service-access" });
+    expect(service.issueServiceAccessToken).toHaveBeenCalledWith(
+      "project-service",
+      "fixture-secret",
+      "project:write",
+    );
   });
 
   it("공개 OAuth client 등록을 서비스에 전달한다", () => {

@@ -1,3 +1,4 @@
+import { withProjectRecency } from "./project-recency";
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -22,7 +23,8 @@ export class ProjectService {
       ],
     });
 
-    return projectList;
+    const now = Date.now();
+    return projectList.map((project) => withProjectRecency(project, now));
   }
 
   // 프로젝트 검색
@@ -59,8 +61,9 @@ export class ProjectService {
       this.prisma.project.count({ where }),
       this.prisma.project.count({ where: { isShow: true } }),
     ]);
+    const now = Date.now();
     return {
-      data,
+      data: data.map((project) => withProjectRecency(project, now)),
       total: data.length,
       filteredTotal,
       allTotal,
@@ -76,7 +79,7 @@ export class ProjectService {
         isShow: true,
       },
     });
-    return project;
+    return project ? withProjectRecency(project) : null;
   }
 
   // stacks를 기반으로 Tags를 검색하는 메서드
@@ -134,8 +137,9 @@ export class ProjectService {
       ],
     });
 
+    const now = Date.now();
     return projects.map((project) => ({
-      ...project,
+      ...withProjectRecency(project, now),
       projectTags: (project.projectTags || []).map((pt) => ({
         id: pt.tag.id,
         name: pt.tag.name,
@@ -179,8 +183,9 @@ export class ProjectService {
       ],
     });
 
+    const now = Date.now();
     return projects.map((project) => ({
-      ...project,
+      ...withProjectRecency(project, now),
       projectTags: (project.projectTags || []).map((pt) => ({
         id: pt.tag.id,
         name: pt.tag.name,

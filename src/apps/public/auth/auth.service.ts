@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import {
@@ -134,6 +135,120 @@ export class AuthService {
     };
   }
 
+  async issueServiceAccessToken(
+    clientId: string,
+    secret: string,
+    scope?: string,
+  ) {
+    const expectedId = process.env.SERVICE_OAUTH_CLIENT_ID;
+    const expectedSecret = process.env.SERVICE_OAUTH_CLIENT_SECRET;
+    if (
+      !expectedId?.trim() ||
+      !expectedSecret?.trim() ||
+      !clientId ||
+      !secret ||
+      !timingSafeEqual(
+        createHash("sha256").update(clientId).digest(),
+        createHash("sha256").update(expectedId).digest(),
+      ) ||
+      !timingSafeEqual(
+        createHash("sha256").update(secret).digest(),
+        createHash("sha256").update(expectedSecret).digest(),
+      )
+    ) {
+      throw new UnauthorizedException({ error: "invalid_client" });
+    }
+    if (scope !== undefined && scope !== "project:write")
+      throw new BadRequestException({ error: "invalid_scope" });
+    try {
+      const audience = requiredEnv("SERVICE_OAUTH_AUDIENCE");
+      const issuer = requiredEnv("AUTH_ISSUER");
+      const { privateKey, keyId } = this.getSigningKey();
+      const expiresAt = new Date(Date.now() + 900_000);
+      const history = await this.prisma.authHistory.create({
+        data: {
+          clientId: "service",
+          oauthClientId: clientId,
+          userId: null,
+          audience,
+          scope: "project:write",
+          status: AuthHistoryStatus.authenticated,
+          expiresAt,
+        },
+      });
+      const accessToken = sign(
+        { scope: "project:write", client_id: clientId, sid: history.id },
+        privateKey,
+        {
+          algorithm: "RS256",
+          keyid: keyId,
+          subject: clientId,
+          audience,
+          issuer,
+          expiresIn: 900,
+        },
+      );
+      return {
+        access_token: accessToken,
+        token_type: "Bearer",
+        expires_in: 900,
+        scope: "project:write",
+      };
+    } catch {
+      throw new ServiceUnavailableException(
+        "서비스 토큰을 발급할 수 없습니다.",
+      );
+    }
+  }
+
+  async validateProjectServiceToken(token: string): Promise<void> {
+    const clientId = process.env.SERVICE_OAUTH_CLIENT_ID;
+    const audience = process.env.SERVICE_OAUTH_AUDIENCE;
+    if (!clientId?.trim() || !audience?.trim())
+      throw new UnauthorizedException();
+    let claims: JwtPayload;
+    try {
+      const verified = verifyJwt(token, this.getSigningKey().publicKey, {
+        algorithms: ["RS256"],
+        issuer: requiredEnv("AUTH_ISSUER"),
+        audience,
+      });
+      if (
+        typeof verified === "string" ||
+        verified.sub !== clientId ||
+        verified.client_id !== clientId ||
+        verified.scope !== "project:write" ||
+        typeof verified.sid !== "string" ||
+        typeof verified.exp !== "number" ||
+        typeof verified.iat !== "number" ||
+        verified.iat > Date.now() / 1000 + 60
+      )
+        throw new UnauthorizedException();
+      claims = verified;
+    } catch {
+      throw new UnauthorizedException();
+    }
+    const history = await this.prisma.authHistory
+      .findUnique({ where: { id: claims.sid } })
+      .catch(() => {
+        throw new ServiceUnavailableException(
+          "서비스 인증 상태를 확인할 수 없습니다.",
+        );
+      });
+    if (
+      !history ||
+      history.clientId !== "service" ||
+      history.oauthClientId !== clientId ||
+      history.userId !== null ||
+      history.audience !== audience ||
+      history.scope !== "project:write" ||
+      history.status !== AuthHistoryStatus.authenticated ||
+      history.revokedAt !== null ||
+      history.expiresAt <= new Date()
+    )
+      throw new UnauthorizedException();
+  }
+
   getJwks() {
     const { jwk, keyId } = this.getSigningKey();
     return { keys: [{ ...jwk, kid: keyId, use: "sig", alg: "RS256" }] };
@@ -204,11 +319,19 @@ export class AuthService {
       revocation_endpoint: `${issuer}/oauth/revoke`,
       jwks_uri: `${issuer}/.well-known/jwks.json`,
       response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code", "refresh_token"],
+      grant_types_supported: [
+        "authorization_code",
+        "refresh_token",
+        "client_credentials",
+      ],
       code_challenge_methods_supported: ["S256"],
       authorization_response_iss_parameter_supported: true,
-      token_endpoint_auth_methods_supported: ["none"],
-      scopes_supported: ["resume:use"],
+      token_endpoint_auth_methods_supported: [
+        "none",
+        "client_secret_basic",
+        "client_secret_post",
+      ],
+      scopes_supported: ["resume:use", "project:write"],
     };
   }
 

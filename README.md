@@ -203,3 +203,38 @@ https://local.ycseng.com:4000/api (HTTPS 서버 사용 시)
 - 이 기록은 운영 DB의 DDL과 Prisma 이력 반영 완료를 의미합니다. 기록 시점에 OpenAI·Gemini를 허용하는 API 코드와 MCP 어댑터·화면의 배포는 별도 단계로 남아 있습니다.
 
 적용 명령과 배포 순서는 [모델 설정 API 문서](MODEL_SETTING_API.md#운영-migration-적용-현황)를 따릅니다.
+
+## 공통 프로젝트 서비스 API
+
+Hub, `portfolio2/mcp` 등 서버 측 호출자는 같은 OAuth 서비스 자격과 프로젝트 쓰기 API를 사용합니다. 기존 사용자 OAuth 로그인은 유지합니다. 이 기능은 별도 Prisma 컬럼이나 migration을 추가하지 않습니다.
+
+### 설정과 토큰 발급
+
+배포 환경의 `portfolio-config`에 다음 값을 등록해야 합니다. 실제 자격 값은 코드나 공개 문서에 넣지 않습니다.
+
+- `SERVICE_OAUTH_CLIENT_ID`: 공통 프로젝트 서비스 client 식별자입니다.
+- `SERVICE_OAUTH_CLIENT_SECRET`: 공통 서비스 client의 비밀값입니다.
+- `SERVICE_OAUTH_AUDIENCE`: 프로젝트 서비스 토큰의 audience입니다.
+- 기존 `AUTH_ISSUER`와 `AUTH_PRIVATE_KEY`를 그대로 사용합니다.
+
+`POST /auth/token`에 `grant_type=client_credentials`, `scope=project:write`를 전달합니다. 권장 client 인증은 HTTP Basic이며 ID와 secret을 form 인코딩한 뒤 `ID:SECRET`을 base64 인코딩합니다. 본문의 `client_id`, `client_secret`을 사용하는 `client_secret_post`도 지원하며 두 방식을 동시에 보내면 거부합니다. 자격 증명은 서버 또는 Actions의 비밀 설정에서만 사용합니다.
+
+응답은 `access_token`, `token_type: Bearer`, `expires_in: 900`, `scope: project:write`입니다. 사용자 로그인과 refresh token은 필요하지 않으며 실행마다 새 토큰을 발급받습니다. 기존 `AuthHistory`에 사용자 없이 서비스 세션을 기록하고 서명·issuer·audience·scope·만료·활성 세션을 함께 검증합니다. client 자격이 미설정이면 서비스 토큰 발급을 거부합니다.
+
+### 생성·업데이트
+
+`PUT /service/project`에 서비스 access token을 Bearer로 전달합니다. 요청은 다음 필드를 사용합니다.
+
+- `slug`: 기존 프로젝트 식별자이며 같은 값이면 업데이트하고 없으면 생성합니다.
+- `title`, `description`, `image`, `stacks`, `content`: 전체 콘텐츠를 전달합니다. `stacks`는 기존 API와 같은 JSON 문자열 배열이며 `content`는 자유 형식 마크다운입니다.
+- `linkDemo`, `linkGithub`: 선택적인 HTTP(S) 링크입니다. 생략하거나 null로 전달하면 기존 링크를 지웁니다.
+
+마크다운의 제목·목차·front matter·필수 항목은 요구하지 않습니다. 각 저장소가 `PROJECT.MD`를 관리하고 Hub나 MCP가 이를 읽거나 AI로 보완해 API 전송 필드로 구성합니다. API는 GitHub 조회와 AI 생성을 수행하지 않습니다.
+
+생성·업데이트는 즉시 공개하며 기존 관리자 편집 내용도 요청 내용으로 교체합니다. `isShow`, `order`, 저장소 ID 등 계약 밖의 필드를 전달하면 거부합니다. 신규는 기존 order 기본값을 사용하고 기존 프로젝트의 order는 유지합니다. 프로젝트와 스택 태그 관계를 같은 트랜잭션으로 반영하며, 같은 콘텐츠와 태그를 재전송하면 쓰기와 updatedAt 갱신을 생략합니다. 충돌은 제한적으로 재시도하고 계속 충돌하면 409, 그 외 저장 장애는 고정 메시지의 503으로 반환합니다.
+
+응답은 `operation: created | updated | unchanged`와 `project`입니다. 네트워크 응답을 잃은 경우 같은 slug와 콘텐츠를 재전송할 수 있습니다. 여러 호출자가 서로 다른 내용을 같은 slug에 쓰면 마지막으로 성공한 요청이 반영되며 과거 요청의 버전 순서까지 보장하지는 않습니다.
+
+### 최근 변경 표시
+
+공개 목록·검색·상세·태그별 조회와 서비스 저장 응답의 프로젝트에 `isRecent`를 제공합니다. 기존 updatedAt부터 응답 시각까지 0 이상 7일 이하이면 true이며 정확히 7일을 포함하고 미래 시각은 제외합니다. 생성과 업데이트를 별도로 구분하지 않으며 기존 프로젝트의 목록 순서는 변경하지 않습니다. 실제 Hub 콘텐츠 변경 시 updatedAt을 명시적으로 갱신하고 동일 콘텐츠 재전송으로 최근 표시 기간을 늘리지 않습니다.

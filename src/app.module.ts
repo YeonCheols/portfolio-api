@@ -1,3 +1,4 @@
+import { ServiceProjectModule } from "./apps/service/project/project.module";
 import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { AppController } from "./app.controller";
@@ -10,7 +11,14 @@ import { HealthModule } from "./health/health.module";
 import { PrismaErrorFilter } from "../utils/error";
 
 @Module({
-  imports: [PrismaModule, HealthModule, PublicModule, AdminModule, McpModule],
+  imports: [
+    PrismaModule,
+    HealthModule,
+    PublicModule,
+    AdminModule,
+    McpModule,
+    ServiceProjectModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
