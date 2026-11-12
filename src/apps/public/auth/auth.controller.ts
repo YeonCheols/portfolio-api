@@ -85,35 +85,19 @@ export class AuthController {
   ) {
     const body = this.requireOAuthBody(input);
     const grantType = body.grant_type;
-    if (grantType === "client_credentials") {
-      if (body.scope !== undefined && typeof body.scope !== "string")
+    if (grantType === "urn:ietf:params:oauth:grant-type:token-exchange") {
+      if (
+        authorization !== undefined ||
+        body.client_id !== undefined ||
+        body.client_secret !== undefined ||
+        body.subject_token_type !== "urn:ietf:params:oauth:token-type:jwt" ||
+        (body.scope !== undefined && typeof body.scope !== "string")
+      )
         throw new BadRequestException({ error: "invalid_request" });
-      let clientId: string;
-      let secret: string;
-      if (authorization !== undefined) {
-        if (body.client_id !== undefined || body.client_secret !== undefined)
-          throw new BadRequestException({ error: "invalid_request" });
-        const match = /^Basic ([A-Za-z0-9+/]+={0,2})$/i.exec(authorization);
-        if (!match)
-          throw new UnauthorizedException({ error: "invalid_client" });
-        try {
-          const value = Buffer.from(match[1], "base64").toString("utf8");
-          const separator = value.indexOf(":");
-          if (separator < 1) throw new Error("invalid credential encoding");
-          clientId = decodeURIComponent(
-            value.slice(0, separator).replace(/\+/g, " "),
-          );
-          secret = decodeURIComponent(
-            value.slice(separator + 1).replace(/\+/g, " "),
-          );
-        } catch {
-          throw new UnauthorizedException({ error: "invalid_client" });
-        }
-      } else {
-        clientId = this.requireOAuthString(body, "client_id");
-        secret = this.requireOAuthString(body, "client_secret");
-      }
-      return this.service.issueServiceAccessToken(clientId, secret, body.scope);
+      return this.service.issueServiceAccessToken(
+        this.requireOAuthString(body, "subject_token"),
+        body.scope,
+      );
     }
     if (grantType === "authorization_code") {
       try {
@@ -145,10 +129,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Header("Cache-Control", "no-store")
   @Header("Pragma", "no-cache")
-  @ApiOperation({ summary: "OAuth refresh token 폐기" })
+  @ApiOperation({ summary: "OAuth access token 또는 refresh token 폐기" })
   async oauthRevoke(@Body() input?: unknown) {
     const body = this.requireOAuthBody(input);
     try {
+      if (body.token_type_hint === "access_token") {
+        await this.service.revokeServiceAccessToken(
+          this.requireOAuthString(body, "token"),
+        );
+        return {};
+      }
       return await this.service.revokeOAuthToken(
         this.requireOAuthString(body, "client_id"),
         this.requireOAuthString(body, "token"),
