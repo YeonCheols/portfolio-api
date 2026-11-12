@@ -1,16 +1,16 @@
 import { generateKeyPairSync } from "crypto";
-import { INestApplication } from "@nestjs/common";
+import { INestApplication, UnauthorizedException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { PrismaClient } from "@prisma/client";
 import * as request from "supertest";
 import { App } from "supertest/types";
 import { AppModule } from "./../src/app.module";
+import { GitHubActionsOidcService } from "./../src/apps/public/auth/github-actions-oidc.service";
 
 // jest-e2e.setup.ts가 로컬 portfolio_test DB만 허용합니다.
 describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
   const previousEnv = { ...process.env };
-  const clientId = "integration-project-service";
-  const clientSecret = "integration-only-secret";
+  const clientId = "github-actions:91575756";
   const slug = "integration-service-project";
   const body = {
     slug,
@@ -25,15 +25,20 @@ describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
   let prisma: PrismaClient;
   let token: string;
 
-  const basic = () =>
-    `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
-
+  const exchange = (
+    scope = "project:write",
+    subjectToken = "integration-github-oidc",
+  ) => ({
+    grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+    subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
+    subject_token: subjectToken,
+    scope,
+  });
   const issueToken = () =>
     request(app.getHttpServer())
       .post("/auth/token")
-      .set("Authorization", basic())
       .type("form")
-      .send({ grant_type: "client_credentials", scope: "project:write" });
+      .send(exchange());
 
   const save = (
     data: Omit<typeof body, "linkGithub"> & {
@@ -51,17 +56,28 @@ describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
     process.env.AUTH_PRIVATE_KEY = keys.privateKey
       .export({ type: "pkcs8", format: "pem" })
       .toString();
+    process.env.MCP_AUTH_SERVICE_TOKEN = "integration-mcp-service-token";
+    process.env.PORTFOLIO_AUTH_SERVICE_TOKEN =
+      "integration-obsolete-portfolio-token";
     process.env.AUTH_ISSUER = "https://integration.invalid/auth";
-    process.env.SERVICE_OAUTH_CLIENT_ID = clientId;
-    process.env.SERVICE_OAUTH_CLIENT_SECRET = clientSecret;
-    process.env.SERVICE_OAUTH_AUDIENCE =
-      "https://integration.invalid/service/project";
     prisma = new PrismaClient({
       datasources: { db: { url: process.env.DATABASE_URL } },
     });
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(GitHubActionsOidcService)
+      .useValue({
+        verify: jest.fn((token: string, audience: string) => {
+          if (
+            token !== "integration-github-oidc" ||
+            audience !== "https://integration.invalid"
+          )
+            return Promise.reject(new UnauthorizedException());
+          return Promise.resolve();
+        }),
+      })
+      .compile();
     app = moduleRef.createNestApplication();
     await app.init();
   });
@@ -184,17 +200,12 @@ describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
     await request(app.getHttpServer())
       .post("/auth/token")
       .type("form")
-      .send({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: "wrong",
-      })
+      .send(exchange("project:write", "untrusted-oidc"))
       .expect(401);
     await request(app.getHttpServer())
       .post("/auth/token")
-      .set("Authorization", basic())
       .type("form")
-      .send({ grant_type: "client_credentials", scope: "resume:use" })
+      .send(exchange("resume:use"))
       .expect(400);
     await expect(prisma.project.count({ where: { slug } })).resolves.toBe(0);
   });
@@ -225,5 +236,55 @@ describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
     await expect(
       prisma.projectTag.count({ where: { project: { slug } } }),
     ).resolves.toBe(2);
+  });
+  it("비MCP 서버 인증은 auth:manage OAuth로만 통과하고 MCP 고정 인증과 프로젝트 권한은 유지한다", async () => {
+    const issued = await request(app.getHttpServer())
+      .post("/auth/token")
+      .type("form")
+      .send(exchange("auth:manage"))
+      .expect(200);
+    const accessToken = issued.body.access_token as string;
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ client_id: "portfolio" })
+      .expect(400);
+    for (const rejected of [token, "integration-obsolete-portfolio-token"]) {
+      await request(app.getHttpServer())
+        .post("/auth/refresh")
+        .set("Authorization", `Bearer ${rejected}`)
+        .send({ client_id: "portfolio" })
+        .expect(401);
+    }
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .send({ client_id: "portfolio" })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("Authorization", "Bearer integration-mcp-service-token")
+      .send({ client_id: "mcp" })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ client_id: "mcp" })
+      .expect(401);
+    await save(body, accessToken).expect(401);
+  });
+  it("워크플로 종료 시 토큰을 폐기하면 즉시 저장을 거부하고 중복 폐기는 안전하게 처리한다", async () => {
+    await request(app.getHttpServer())
+      .post("/auth/oauth/revoke")
+      .type("form")
+      .send({ token, token_type_hint: "access_token" })
+      .expect(200);
+    await save().expect(401);
+    await request(app.getHttpServer())
+      .post("/auth/oauth/revoke")
+      .type("form")
+      .send({ token, token_type_hint: "access_token" })
+      .expect(200);
+    const next = await issueToken().expect(200);
+    await save(body, next.body.access_token as string).expect(200);
   });
 });

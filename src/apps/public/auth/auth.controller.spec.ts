@@ -15,6 +15,7 @@ describe("AuthController", () => {
   const service = {
     getJwks: jest.fn(),
     issueServiceAccessToken: jest.fn(),
+    revokeServiceAccessToken: jest.fn(),
     registerOAuthClient: jest.fn(),
     startMcpOAuthAuthorization: jest.fn(),
     completeMcpOAuthCallback: jest.fn(),
@@ -33,52 +34,65 @@ describe("AuthController", () => {
     controller = new AuthController(service as never);
   });
 
-  it("HTTP Basic 자격으로 client_credentials를 발급하고 중복 인증은 거부한다", async () => {
+  it("GitHub OIDC token exchange 요청을 전달하고 client_credentials는 지원하지 않는다", async () => {
     service.issueServiceAccessToken.mockResolvedValue({
-      access_token: "service-access",
+      access_token: "workflow-access",
     });
-    const header =
-      "Basic " +
-      Buffer.from("project-service:fixture-secret").toString("base64");
     await expect(
-      controller.oauthToken({ grant_type: "client_credentials" }, header),
-    ).resolves.toEqual({ access_token: "service-access" });
+      controller.oauthToken({
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
+        subject_token: "github-oidc",
+        scope: "project:write",
+      }),
+    ).resolves.toEqual({ access_token: "workflow-access" });
     expect(service.issueServiceAccessToken).toHaveBeenCalledWith(
-      "project-service",
-      "fixture-secret",
-      undefined,
-    );
-    await expect(
-      controller.oauthToken(
-        {
-          grant_type: "client_credentials",
-          client_id: "project-service",
-          client_secret: "fixture-secret",
-        },
-        header,
-      ),
-    ).rejects.toThrow(BadRequestException);
-  });
-
-  it("client_credentials 요청을 공통 서비스 토큰 발급으로 전달한다", async () => {
-    service.issueServiceAccessToken.mockResolvedValue({
-      access_token: "service-access",
-      token_type: "Bearer",
-      expires_in: 900,
-      scope: "project:write",
-    });
-    const response = await controller.oauthToken({
-      grant_type: "client_credentials",
-      client_id: "project-service",
-      client_secret: "fixture-secret",
-      scope: "project:write",
-    });
-    expect(response).toMatchObject({ access_token: "service-access" });
-    expect(service.issueServiceAccessToken).toHaveBeenCalledWith(
-      "project-service",
-      "fixture-secret",
+      "github-oidc",
       "project:write",
     );
+    await expect(
+      controller.oauthToken({
+        grant_type: "client_credentials",
+        client_id: "obsolete",
+        client_secret: "obsolete",
+      }),
+    ).rejects.toMatchObject({ response: { error: "unsupported_grant_type" } });
+  });
+
+  it("OIDC 교환에 중복 자격·누락 토큰·다른 token type·비문자 scope를 허용하지 않는다", async () => {
+    const body = {
+      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+      subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
+      subject_token: "github-oidc",
+    };
+    for (const invalid of [
+      { ...body, client_id: "obsolete" },
+      { ...body, client_secret: "obsolete" },
+      { ...body, subject_token_type: "invalid" },
+      { ...body, subject_token: "" },
+      { ...body, scope: ["project:write"] },
+    ])
+      await expect(controller.oauthToken(invalid)).rejects.toMatchObject({
+        status: 400,
+      });
+    await expect(
+      controller.oauthToken(body, "Basic obsolete"),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(service.issueServiceAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("access token 폐기는 public MCP refresh token 폐기와 분리해 처리한다", async () => {
+    service.revokeServiceAccessToken.mockResolvedValue(undefined);
+    await expect(
+      controller.oauthRevoke({
+        token: "workflow-access",
+        token_type_hint: "access_token",
+      }),
+    ).resolves.toEqual({});
+    expect(service.revokeServiceAccessToken).toHaveBeenCalledWith(
+      "workflow-access",
+    );
+    expect(service.revokeOAuthToken).not.toHaveBeenCalled();
   });
 
   it("공개 OAuth client 등록을 서비스에 전달한다", () => {

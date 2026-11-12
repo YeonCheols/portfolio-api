@@ -17,6 +17,10 @@ import { AuthHistoryStatus } from "@prisma/client";
 import { OAuthStateService } from "src/apps/identity/oauth-state.service";
 import { UserIdentityService } from "src/apps/identity/user-identity.service";
 import { PrismaService } from "src/prisma/prisma.service";
+import {
+  GitHubActionsOidcService,
+  GITHUB_ACTIONS_OWNER_ID,
+} from "./github-actions-oidc.service";
 
 type AuthClientId = "portfolio" | "mcp";
 type ClientConfig = {
@@ -77,6 +81,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly userIdentity: UserIdentityService,
     private readonly oauthState: OAuthStateService,
+    private readonly githubActionsOidc: GitHubActionsOidcService,
   ) {}
 
   private getClientConfig(clientId: AuthClientId): ClientConfig {
@@ -135,33 +140,14 @@ export class AuthService {
     };
   }
 
-  async issueServiceAccessToken(
-    clientId: string,
-    secret: string,
-    scope?: string,
-  ) {
-    const expectedId = process.env.SERVICE_OAUTH_CLIENT_ID;
-    const expectedSecret = process.env.SERVICE_OAUTH_CLIENT_SECRET;
-    if (
-      !expectedId?.trim() ||
-      !expectedSecret?.trim() ||
-      !clientId ||
-      !secret ||
-      !timingSafeEqual(
-        createHash("sha256").update(clientId).digest(),
-        createHash("sha256").update(expectedId).digest(),
-      ) ||
-      !timingSafeEqual(
-        createHash("sha256").update(secret).digest(),
-        createHash("sha256").update(expectedSecret).digest(),
-      )
-    ) {
-      throw new UnauthorizedException({ error: "invalid_client" });
-    }
-    if (scope !== undefined && scope !== "project:write")
+  async issueServiceAccessToken(subjectToken: string, scope?: string) {
+    const grantedScope = scope ?? "project:write";
+    if (!["project:write", "auth:manage"].includes(grantedScope))
       throw new BadRequestException({ error: "invalid_scope" });
+    const audience = new URL(requiredEnv("AUTH_ISSUER")).origin;
+    await this.githubActionsOidc.verify(subjectToken, audience);
+    const clientId = `github-actions:${GITHUB_ACTIONS_OWNER_ID}`;
     try {
-      const audience = requiredEnv("SERVICE_OAUTH_AUDIENCE");
       const issuer = requiredEnv("AUTH_ISSUER");
       const { privateKey, keyId } = this.getSigningKey();
       const expiresAt = new Date(Date.now() + 900_000);
@@ -171,13 +157,13 @@ export class AuthService {
           oauthClientId: clientId,
           userId: null,
           audience,
-          scope: "project:write",
+          scope: grantedScope,
           status: AuthHistoryStatus.authenticated,
           expiresAt,
         },
       });
       const accessToken = sign(
-        { scope: "project:write", client_id: clientId, sid: history.id },
+        { scope: grantedScope, client_id: clientId, sid: history.id },
         privateKey,
         {
           algorithm: "RS256",
@@ -190,9 +176,10 @@ export class AuthService {
       );
       return {
         access_token: accessToken,
+        issued_token_type: "urn:ietf:params:oauth:token-type:access_token",
         token_type: "Bearer",
         expires_in: 900,
-        scope: "project:write",
+        scope: grantedScope,
       };
     } catch {
       throw new ServiceUnavailableException(
@@ -202,32 +189,17 @@ export class AuthService {
   }
 
   async validateProjectServiceToken(token: string): Promise<void> {
-    const clientId = process.env.SERVICE_OAUTH_CLIENT_ID;
-    const audience = process.env.SERVICE_OAUTH_AUDIENCE;
-    if (!clientId?.trim() || !audience?.trim())
-      throw new UnauthorizedException();
-    let claims: JwtPayload;
-    try {
-      const verified = verifyJwt(token, this.getSigningKey().publicKey, {
-        algorithms: ["RS256"],
-        issuer: requiredEnv("AUTH_ISSUER"),
-        audience,
-      });
-      if (
-        typeof verified === "string" ||
-        verified.sub !== clientId ||
-        verified.client_id !== clientId ||
-        verified.scope !== "project:write" ||
-        typeof verified.sid !== "string" ||
-        typeof verified.exp !== "number" ||
-        typeof verified.iat !== "number" ||
-        verified.iat > Date.now() / 1000 + 60
-      )
-        throw new UnauthorizedException();
-      claims = verified;
-    } catch {
-      throw new UnauthorizedException();
-    }
+    return this.validateOAuthServiceToken(token, "project:write");
+  }
+
+  async validateOAuthServiceToken(
+    token: string,
+    requiredScope: "project:write" | "auth:manage",
+  ): Promise<void> {
+    const clientId = `github-actions:${GITHUB_ACTIONS_OWNER_ID}`;
+    const audience = new URL(requiredEnv("AUTH_ISSUER")).origin;
+    const claims = this.readServiceTokenClaims(token);
+    if (claims.scope !== requiredScope) throw new UnauthorizedException();
     const history = await this.prisma.authHistory
       .findUnique({ where: { id: claims.sid } })
       .catch(() => {
@@ -241,12 +213,67 @@ export class AuthService {
       history.oauthClientId !== clientId ||
       history.userId !== null ||
       history.audience !== audience ||
-      history.scope !== "project:write" ||
+      history.scope !== requiredScope ||
       history.status !== AuthHistoryStatus.authenticated ||
       history.revokedAt !== null ||
       history.expiresAt <= new Date()
     )
       throw new UnauthorizedException();
+  }
+
+  private readServiceTokenClaims(
+    token: string,
+    ignoreExpiration = false,
+  ): JwtPayload {
+    const clientId = `github-actions:${GITHUB_ACTIONS_OWNER_ID}`;
+    const audience = new URL(requiredEnv("AUTH_ISSUER")).origin;
+    let claims: JwtPayload;
+    try {
+      const verified = verifyJwt(token, this.getSigningKey().publicKey, {
+        algorithms: ["RS256"],
+        issuer: requiredEnv("AUTH_ISSUER"),
+        audience,
+        ignoreExpiration,
+      });
+      if (
+        typeof verified === "string" ||
+        verified.sub !== clientId ||
+        verified.client_id !== clientId ||
+        typeof verified.scope !== "string" ||
+        !["project:write", "auth:manage"].includes(verified.scope) ||
+        typeof verified.sid !== "string" ||
+        typeof verified.exp !== "number" ||
+        typeof verified.iat !== "number" ||
+        verified.iat > Date.now() / 1000 + 60
+      )
+        throw new UnauthorizedException();
+      claims = verified;
+    } catch {
+      throw new UnauthorizedException();
+    }
+    return claims;
+  }
+
+  async revokeServiceAccessToken(token: string): Promise<void> {
+    const claims = this.readServiceTokenClaims(token, true);
+    await this.prisma.authHistory
+      .updateMany({
+        where: {
+          id: claims.sid,
+          clientId: "service",
+          oauthClientId: claims.sub,
+          userId: null,
+          audience: new URL(requiredEnv("AUTH_ISSUER")).origin,
+          scope: claims.scope,
+          revokedAt: null,
+        },
+        data: { status: AuthHistoryStatus.revoked, revokedAt: new Date() },
+      })
+      .catch(() => {
+        throw new ServiceUnavailableException(
+          "서비스 인증 상태를 갱신할 수 없습니다.",
+        );
+      });
   }
 
   getJwks() {
@@ -322,16 +349,12 @@ export class AuthService {
       grant_types_supported: [
         "authorization_code",
         "refresh_token",
-        "client_credentials",
+        "urn:ietf:params:oauth:grant-type:token-exchange",
       ],
       code_challenge_methods_supported: ["S256"],
       authorization_response_iss_parameter_supported: true,
-      token_endpoint_auth_methods_supported: [
-        "none",
-        "client_secret_basic",
-        "client_secret_post",
-      ],
-      scopes_supported: ["resume:use", "project:write"],
+      token_endpoint_auth_methods_supported: ["none"],
+      scopes_supported: ["resume:use", "project:write", "auth:manage"],
     };
   }
 
@@ -508,12 +531,8 @@ export class AuthService {
     clientId: AuthClientId,
     token: string | undefined,
   ): void {
-    const expected =
-      process.env[
-        clientId === "portfolio"
-          ? "PORTFOLIO_AUTH_SERVICE_TOKEN"
-          : "MCP_AUTH_SERVICE_TOKEN"
-      ];
+    if (clientId !== "mcp") throw new UnauthorizedException();
+    const expected = process.env.MCP_AUTH_SERVICE_TOKEN;
     if (!expected?.trim() || !token) throw new UnauthorizedException();
     const actualDigest = createHash("sha256").update(token).digest();
     const expectedDigest = createHash("sha256").update(expected).digest();

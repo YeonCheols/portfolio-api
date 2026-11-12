@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Request } from "express";
 import { AuthService } from "./auth.service";
 
@@ -6,19 +11,18 @@ import { AuthService } from "./auth.service";
 export class AuthServiceTokenGuard implements CanActivate {
   constructor(private readonly service: AuthService) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const clientId = (request.body as { client_id?: string } | undefined)
       ?.client_id;
-    const [scheme, token] = request.headers.authorization?.split(" ") ?? [];
-    if (clientId !== "portfolio" && clientId !== "mcp") {
-      this.service.validateServiceToken("mcp", undefined);
-      return false;
+    const match = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? "");
+    if (!match || (clientId !== "portfolio" && clientId !== "mcp"))
+      throw new UnauthorizedException();
+    if (clientId === "mcp") {
+      this.service.validateServiceToken("mcp", match[1]);
+    } else {
+      await this.service.validateOAuthServiceToken(match[1], "auth:manage");
     }
-    if (scheme !== "Bearer") {
-      this.service.validateServiceToken(clientId, undefined);
-    }
-    this.service.validateServiceToken(clientId, token);
     return true;
   }
 }
