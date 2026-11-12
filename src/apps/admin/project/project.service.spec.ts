@@ -1,5 +1,10 @@
 import { Test } from "@nestjs/testing";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+  ConflictException,
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AdminProjectService } from "./project.service";
@@ -8,6 +13,7 @@ describe("AdminProjectService", () => {
   let service: AdminProjectService;
   const prisma = {
     project: {
+      upsert: jest.fn(),
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -42,6 +48,150 @@ describe("AdminProjectService", () => {
       ],
     }).compile();
     service = moduleRef.get(AdminProjectService);
+  });
+
+  describe("upsert", () => {
+    it("기존 관리자 편집본을 공개 콘텐츠로 교체하면서 정렬값은 변경하지 않는다", async () => {
+      const data = {
+        slug: "p1",
+        title: "자동 갱신",
+        description: "새 설명",
+        image: "",
+        stacks: "[]",
+        content: "새 문서",
+      };
+      prisma.project.findUnique.mockResolvedValue({
+        id: 1,
+        ...data,
+        title: "관리자 편집",
+        content: "옛 본문",
+        isShow: false,
+        order: 13,
+        projectTags: [],
+      });
+      prisma.project.upsert.mockResolvedValue({
+        id: 1,
+        ...data,
+        isShow: true,
+        order: 13,
+      });
+      prisma.projectTag.findMany.mockResolvedValue([]);
+      await expect(service.upsert(data)).resolves.toMatchObject({
+        operation: "updated",
+        project: { isShow: true, order: 13 },
+      });
+      expect(prisma.project.upsert.mock.calls[0][0].update).toMatchObject({
+        title: data.title,
+        content: data.content,
+        isShow: true,
+        updatedAt: expect.any(Date),
+      });
+      expect(prisma.project.upsert.mock.calls[0][0].update).not.toHaveProperty(
+        "order",
+      );
+    });
+    it("동시 쓰기 충돌은 제한적으로 재시도하고 DB 원문 오류는 노출하지 않는다", async () => {
+      const data = {
+        slug: "p1",
+        title: "title",
+        description: "desc",
+        image: "image",
+        stacks: "[]",
+      };
+      prisma.project.findUnique.mockResolvedValue(null);
+      prisma.project.upsert.mockResolvedValue({ id: 1, ...data });
+      prisma.projectTag.findMany.mockResolvedValue([]);
+      const conflict = new Prisma.PrismaClientKnownRequestError(
+        "private conflict",
+        { code: "P2034", clientVersion: "6.7.0" },
+      );
+      prisma.$transaction.mockRejectedValueOnce(conflict);
+      await expect(service.upsert(data)).resolves.toMatchObject({
+        operation: "created",
+      });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+      prisma.$transaction.mockRejectedValue(
+        new Error("postgres credential must not escape"),
+      );
+      await expect(service.upsert(data)).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+      prisma.$transaction.mockRejectedValue(conflict);
+      await expect(service.upsert(data)).rejects.toThrow(ConflictException);
+    });
+    it("같은 콘텐츠와 태그를 재전송하면 쓰기 없이 기존 시각과 정렬을 유지한다", async () => {
+      const data = {
+        slug: "portfolio-admin",
+        title: "관리자",
+        description: "설명",
+        image: "https://example.com/image.png",
+        content: "원문",
+        stacks: '["React"]',
+      };
+      const existing = {
+        id: 1,
+        ...data,
+        linkDemo: null,
+        linkGithub: null,
+        isShow: true,
+        order: 13,
+        updatedAt: new Date("2026-01-01"),
+        projectTags: [{ tag: { name: "React" } }],
+      };
+      prisma.project.findUnique.mockResolvedValue(existing);
+      prisma.project.upsert.mockResolvedValue(existing);
+      prisma.projectTag.findMany.mockResolvedValue([
+        { tag: { name: "React" } },
+      ]);
+      prisma.tag.findUnique.mockResolvedValue({ id: 10, name: "React" });
+      await expect(service.upsert(data)).resolves.toMatchObject({
+        operation: "unchanged",
+        project: { updatedAt: existing.updatedAt, order: 13 },
+      });
+      expect(prisma.project.upsert).not.toHaveBeenCalled();
+      expect(prisma.projectTag.create).not.toHaveBeenCalled();
+    });
+    it("없는 slug는 전체 콘텐츠를 공개로 생성하고 태그와 함께 저장한다", async () => {
+      prisma.project.findUnique.mockResolvedValue(null);
+      const data = {
+        slug: "portfolio-admin",
+        title: "관리자",
+        description: "설명",
+        image: "https://example.com/image.png",
+        content: "자유 형식 원문",
+        stacks: '["React"]',
+      };
+      const project = {
+        id: 1,
+        ...data,
+        isShow: true,
+        updatedAt: new Date(),
+        order: 16,
+      };
+      prisma.project.upsert.mockResolvedValue(project);
+      prisma.tag.findUnique.mockResolvedValue({ id: 10, name: "React" });
+      prisma.projectTag.findMany.mockResolvedValue([]);
+      await expect(service.upsert(data)).resolves.toMatchObject({
+        operation: "created",
+        project: { id: 1, slug: data.slug },
+      });
+      expect(prisma.project.upsert).toHaveBeenCalledWith({
+        where: { slug: data.slug },
+        create: expect.objectContaining({ ...data, isShow: true }),
+        update: expect.objectContaining({
+          title: data.title,
+          content: data.content,
+          isShow: true,
+          updatedAt: expect.any(Date),
+        }),
+      });
+      expect(prisma.project.upsert.mock.calls[0][0].update).not.toHaveProperty(
+        "order",
+      );
+      expect(prisma.projectTag.create).toHaveBeenCalledWith({
+        data: { projectId: 1, tagId: 10 },
+      });
+    });
   });
 
   describe("create", () => {

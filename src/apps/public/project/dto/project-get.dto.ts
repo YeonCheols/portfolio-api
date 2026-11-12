@@ -26,6 +26,10 @@ export class ProjectResponse {
   order: number;
   @ApiProperty({ description: "프로젝트 업데이트 일자" })
   updatedAt: Date;
+  @ApiProperty({
+    description: "최근 7일 이내 생성되거나 실제 내용이 변경된 프로젝트 여부",
+  })
+  isRecent: boolean;
 }
 
 export class ProjectByTagResponse extends ProjectResponse {

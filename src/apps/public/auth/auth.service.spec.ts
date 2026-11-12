@@ -88,7 +88,17 @@ describe("AuthService", () => {
       revocation_endpoint: "https://api.example.com/auth/oauth/revoke",
       jwks_uri: "https://api.example.com/auth/.well-known/jwks.json",
       code_challenge_methods_supported: ["S256"],
-      scopes_supported: ["resume:use"],
+      scopes_supported: ["resume:use", "project:write"],
+      grant_types_supported: [
+        "authorization_code",
+        "refresh_token",
+        "client_credentials",
+      ],
+      token_endpoint_auth_methods_supported: [
+        "none",
+        "client_secret_basic",
+        "client_secret_post",
+      ],
     });
   });
 
@@ -741,5 +751,162 @@ describe("AuthService", () => {
       UnauthorizedException,
     );
     expect(prisma.userToken.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("공통 서비스 OAuth", () => {
+  const env = { ...process.env };
+  const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const prisma = { authHistory: { create: jest.fn(), findUnique: jest.fn() } };
+  let service: AuthService;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.SERVICE_OAUTH_CLIENT_ID = "project-service";
+    process.env.SERVICE_OAUTH_CLIENT_SECRET = "fixture-secret";
+    process.env.SERVICE_OAUTH_AUDIENCE =
+      "https://api.example.com/service/project";
+    process.env.AUTH_ISSUER = "https://api.example.com/auth";
+    process.env.AUTH_PRIVATE_KEY = keys.privateKey
+      .export({ format: "pem", type: "pkcs8" })
+      .toString();
+    prisma.authHistory.create.mockResolvedValue({ id: "service-history" });
+    service = new AuthService(prisma as never, {} as never, {} as never);
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  it("유효한 서비스 JWT라도 활성 서비스 인증 이력과 일치할 때만 프로젝트 쓰기를 허용한다", async () => {
+    const response = await service.issueServiceAccessToken(
+      "project-service",
+      "fixture-secret",
+    );
+    const active = {
+      clientId: "service",
+      oauthClientId: "project-service",
+      userId: null,
+      audience: process.env.SERVICE_OAUTH_AUDIENCE,
+      scope: "project:write",
+      status: "authenticated",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 900000),
+    };
+    prisma.authHistory.findUnique.mockResolvedValue(active);
+    await expect(
+      service.validateProjectServiceToken(response.access_token),
+    ).resolves.toBeUndefined();
+    prisma.authHistory.findUnique.mockResolvedValue({
+      ...active,
+      revokedAt: new Date(),
+    });
+    await expect(
+      service.validateProjectServiceToken(response.access_token),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+  it("공통 client 자격으로 사용자 없이 15분 JWT와 인증 이력을 만들고 refresh token은 발급하지 않는다", async () => {
+    const response = await service.issueServiceAccessToken(
+      "project-service",
+      "fixture-secret",
+      "project:write",
+    );
+    expect(response).toMatchObject({
+      token_type: "Bearer",
+      expires_in: 900,
+      scope: "project:write",
+    });
+    expect(response).not.toHaveProperty("refresh_token");
+    expect(
+      verify(response.access_token, keys.publicKey, {
+        algorithms: ["RS256"],
+        issuer: process.env.AUTH_ISSUER,
+        audience: process.env.SERVICE_OAUTH_AUDIENCE,
+      }),
+    ).toMatchObject({
+      sub: "project-service",
+      client_id: "project-service",
+      scope: "project:write",
+      sid: "service-history",
+    });
+    expect(prisma.authHistory.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        clientId: "service",
+        oauthClientId: "project-service",
+        userId: null,
+        status: "authenticated",
+        scope: "project:write",
+      }),
+    });
+  });
+  it("잘못된 client 자격과 scope는 인증 이력을 만들기 전에 거부한다", async () => {
+    await expect(
+      service.issueServiceAccessToken("wrong", "fixture-secret"),
+    ).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.issueServiceAccessToken("project-service", "wrong"),
+    ).rejects.toThrow(UnauthorizedException);
+    delete process.env.SERVICE_OAUTH_CLIENT_SECRET;
+    await expect(
+      service.issueServiceAccessToken("project-service", "fixture-secret"),
+    ).rejects.toThrow(UnauthorizedException);
+    process.env.SERVICE_OAUTH_CLIENT_SECRET = "fixture-secret";
+    await expect(
+      service.issueServiceAccessToken(
+        "project-service",
+        "fixture-secret",
+        "resume:use",
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.authHistory.create).not.toHaveBeenCalled();
+  });
+  it("잘못된 issuer·audience·scope·사용자·만료 토큰은 서비스 세션 조회 없이 거부한다", async () => {
+    const claims = {
+      scope: "project:write",
+      client_id: "project-service",
+      sid: "service-history",
+    };
+    const options = {
+      algorithm: "RS256" as const,
+      issuer: process.env.AUTH_ISSUER,
+      audience: process.env.SERVICE_OAUTH_AUDIENCE,
+      subject: "project-service",
+      expiresIn: 900,
+    };
+    for (const token of [
+      "broken-jwt",
+      signJwt({ ...claims, scope: "resume:use" }, keys.privateKey, options),
+      signJwt(claims, keys.privateKey, {
+        ...options,
+        issuer: "https://wrong.example",
+      }),
+      signJwt(claims, keys.privateKey, {
+        ...options,
+        audience: "https://wrong.example",
+      }),
+      signJwt(claims, keys.privateKey, { ...options, subject: "123" }),
+      signJwt(claims, keys.privateKey, { ...options, expiresIn: -1 }),
+    ])
+      await expect(service.validateProjectServiceToken(token)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    expect(prisma.authHistory.findUnique).not.toHaveBeenCalled();
+  });
+  it("서비스 인증 이력 조회와 발급의 원문 DB 오류를 노출하지 않는다", async () => {
+    const response = await service.issueServiceAccessToken(
+      "project-service",
+      "fixture-secret",
+    );
+    prisma.authHistory.findUnique.mockRejectedValue(
+      new Error("private-db-fixture"),
+    );
+    await expect(
+      service.validateProjectServiceToken(response.access_token),
+    ).rejects.toMatchObject({
+      message: "서비스 인증 상태를 확인할 수 없습니다.",
+    });
+    prisma.authHistory.create.mockRejectedValueOnce(
+      new Error("private-db-fixture"),
+    );
+    await expect(
+      service.issueServiceAccessToken("project-service", "fixture-secret"),
+    ).rejects.toMatchObject({ message: "서비스 토큰을 발급할 수 없습니다." });
   });
 });
