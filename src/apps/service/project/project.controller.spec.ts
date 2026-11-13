@@ -74,7 +74,6 @@ describe("공통 프로젝트 HTTP 계약 (가짜 DB·인증)", () => {
         slug: "p1",
         title: "제목",
         description: "설명",
-        image: "",
         stacks: "[]",
         content: "제목·front matter 없이 자유롭게 작성합니다.",
       };
@@ -103,6 +102,16 @@ describe("공통 프로젝트 HTTP 계약 (가짜 DB·인증)", () => {
       });
       expect(service.upsert).toHaveBeenCalledTimes(1);
       expect(service.upsert).toHaveBeenCalledWith(body);
+      for (const image of [null, ""]) {
+        await request(app.getHttpServer())
+          .put("/service/project")
+          .set("Authorization", "Bearer fixture-token")
+          .send({ ...body, image })
+          .expect(200);
+        expect(service.upsert).toHaveBeenLastCalledWith(
+          expect.objectContaining({ image }),
+        );
+      }
     } finally {
       await app.close();
     }

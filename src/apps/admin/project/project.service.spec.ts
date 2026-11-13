@@ -51,6 +51,107 @@ describe("AdminProjectService", () => {
   });
 
   describe("upsert", () => {
+    it("이미지 URL이 비어 있으면 기존 썸네일은 갱신 대상에서 제외하고 다른 필드만 바꾼다", async () => {
+      const data = {
+        slug: "p1",
+        title: "새 제목",
+        description: "설명",
+        image: "",
+        stacks: "[]",
+        content: "본문",
+      };
+      prisma.project.findUnique.mockResolvedValue({
+        id: 1,
+        ...data,
+        title: "이전 제목",
+        image: "https://example.com/existing.png",
+        projectTags: [],
+      });
+      prisma.project.upsert.mockResolvedValue({
+        id: 1,
+        ...data,
+        image: "https://example.com/existing.png",
+      });
+      prisma.projectTag.findMany.mockResolvedValue([]);
+      await service.upsert(data);
+      expect(prisma.project.upsert.mock.calls[0][0].update).not.toHaveProperty(
+        "image",
+      );
+      expect(prisma.project.upsert.mock.calls[0][0].update.title).toBe(
+        "새 제목",
+      );
+    });
+    it.each([undefined, null, ""])(
+      "이미지 미제공(%s) 외에 같은 콘텐츠이면 기존 이미지·수정 시각을 유지한다",
+      async (image) => {
+        const data = {
+          slug: "p1",
+          title: "제목",
+          description: "설명",
+          image,
+          stacks: "[]",
+          content: "본문",
+        };
+        const existing = {
+          ...data,
+          id: 1,
+          image: "https://example.com/existing.png",
+          linkDemo: null,
+          linkGithub: null,
+          isShow: true,
+          updatedAt: new Date("2026-01-01"),
+          projectTags: [],
+        };
+        prisma.project.findUnique.mockResolvedValue(existing);
+        await expect(service.upsert(data)).resolves.toMatchObject({
+          operation: "unchanged",
+          project: { image: existing.image, updatedAt: existing.updatedAt },
+        });
+        expect(prisma.project.upsert).not.toHaveBeenCalled();
+      },
+    );
+    it.each([undefined, null, ""])(
+      "신규 프로젝트에 이미지가 없으면(%s) 빈 이미지로 생성한다",
+      async (image) => {
+        const data = {
+          slug: "p1",
+          title: "제목",
+          description: "설명",
+          image,
+          stacks: "[]",
+          content: "본문",
+        };
+        prisma.project.findUnique.mockResolvedValue(null);
+        prisma.project.upsert.mockResolvedValue({ id: 1, ...data, image: "" });
+        prisma.projectTag.findMany.mockResolvedValue([]);
+        await service.upsert(data);
+        const saved = prisma.project.upsert.mock.calls[0][0];
+        expect(saved.create.image).toBe("");
+        expect(saved.update).not.toHaveProperty("image");
+      },
+    );
+    it("새 이미지 URL이 제공되면 기존 썸네일을 교체한다", async () => {
+      const data = {
+        slug: "p1",
+        title: "제목",
+        description: "설명",
+        image: "https://example.com/new.png",
+        stacks: "[]",
+        content: "본문",
+      };
+      prisma.project.findUnique.mockResolvedValue({
+        ...data,
+        id: 1,
+        image: "https://example.com/old.png",
+        projectTags: [],
+      });
+      prisma.project.upsert.mockResolvedValue({ ...data, id: 1 });
+      prisma.projectTag.findMany.mockResolvedValue([]);
+      await service.upsert(data);
+      expect(prisma.project.upsert.mock.calls[0][0].update.image).toBe(
+        data.image,
+      );
+    });
     it("기존 관리자 편집본을 공개 콘텐츠로 교체하면서 정렬값은 변경하지 않는다", async () => {
       const data = {
         slug: "p1",
