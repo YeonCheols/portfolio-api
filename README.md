@@ -230,7 +230,8 @@ Hub의 GitHub Actions 워크플로는 GitHub OIDC 신원으로 단기 access tok
 `PUT /service/project`에 서비스 access token을 Bearer로 전달합니다. 요청은 다음 필드를 사용합니다.
 
 - `slug`: 기존 프로젝트 식별자이며 같은 값이면 업데이트하고 없으면 생성합니다.
-- `title`, `description`, `image`, `stacks`, `content`: 전체 콘텐츠를 전달합니다. `stacks`는 기존 API와 같은 JSON 문자열 배열이며 `content`는 자유 형식 마크다운입니다.
+- `title`, `description`, `stacks`, `content`: 전체 콘텐츠를 전달합니다. `stacks`는 기존 API와 같은 JSON 문자열 배열이며 `content`는 자유 형식 마크다운입니다.
+- `image`: 선택 항목입니다. URL이 제공되면 교체하고 생략/null/빈 문자열이면 기존 이미지를 유지합니다. 신규 프로젝트에 이미지가 없으면 빈 문자열로 생성합니다. 이미지 외 콘텐츠도 같으면 기존 수정 시각을 유지합니다.
 - `linkDemo`, `linkGithub`: 선택적인 HTTP(S) 링크입니다. 생략하거나 null로 전달하면 기존 링크를 지웁니다.
 
 마크다운의 제목·목차·front matter·필수 항목은 요구하지 않습니다. 각 저장소가 `PROJECT.MD`를 관리하고 Hub나 MCP가 이를 읽거나 AI로 보완해 API 전송 필드로 구성합니다. API는 GitHub 조회와 AI 생성을 수행하지 않습니다.

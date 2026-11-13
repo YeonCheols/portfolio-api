@@ -210,6 +210,31 @@ describe("프로젝트 서비스 OAuth·저장 테스트 DB 통합", () => {
     await expect(prisma.project.count({ where: { slug } })).resolves.toBe(0);
   });
 
+  it("이미지를 생략·null·빈 값으로 보내도 기존 이미지를 유지하고 새 URL을 보낼 때만 교체한다", async () => {
+    const oldImage = "https://images.example.com/existing.png";
+    const seeded = await save({ ...body, image: oldImage }).expect(200);
+    const input: Partial<typeof body> = { ...body };
+    delete input.image;
+    for (const image of [undefined, null, ""]) {
+      const response = await request(app.getHttpServer())
+        .put("/service/project")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ ...input, image })
+        .expect(200);
+      expect(response.body.operation).toBe("unchanged");
+      expect(response.body.project.image).toBe(oldImage);
+      expect(response.body.project.updatedAt).toBe(
+        seeded.body.project.updatedAt,
+      );
+    }
+    const nextImage = "https://images.example.com/replacement.png";
+    const replaced = await save({ ...body, image: nextImage }).expect(200);
+    expect(replaced.body.operation).toBe("updated");
+    expect(replaced.body.project.image).toBe(nextImage);
+    const stored = await prisma.project.findUniqueOrThrow({ where: { slug } });
+    expect(stored.image).toBe(nextImage);
+  });
+
   it("인증 이력이 만료되거나 폐기된 서비스 토큰은 저장을 거부한다", async () => {
     await prisma.authHistory.updateMany({
       where: { oauthClientId: clientId },

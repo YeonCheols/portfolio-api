@@ -106,7 +106,11 @@ export class AdminProjectService {
   }
 
   async upsert(
-    data: Omit<AdminProjectCreateRequest, "linkDemo" | "linkGithub"> & {
+    data: Omit<
+      AdminProjectCreateRequest,
+      "linkDemo" | "linkGithub" | "image"
+    > & {
+      image?: string | null;
       linkDemo?: string | null;
       linkGithub?: string | null;
     },
@@ -115,7 +119,7 @@ export class AdminProjectService {
     const content = {
       title: data.title,
       description: data.description,
-      image: data.image,
+      ...(data.image ? { image: data.image } : {}),
       content: data.content ?? null,
       stacks: JSON.stringify(stackNames),
       linkDemo: data.linkDemo ?? null,
@@ -147,7 +151,7 @@ export class AdminProjectService {
             }
             const project = await tx.project.upsert({
               where: { slug: data.slug },
-              create: { slug: data.slug, ...content },
+              create: { slug: data.slug, image: "", ...content },
               update: { ...content, updatedAt: new Date() },
             });
             await this.syncProjectTags(tx, project.id, stackNames);

@@ -26,10 +26,15 @@ export class ServiceProjectUpsertRequest {
   @MaxLength(10000)
   description: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      "이미지 URL을 제공할 때만 교체합니다. 생략·null·빈 문자열은 기존 이미지를 유지합니다.",
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(4096)
-  image: string;
+  image?: string | null;
 
   @ApiProperty({
     description: "기존 계약과 같은 JSON 문자열 배열",
