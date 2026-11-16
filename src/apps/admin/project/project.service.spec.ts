@@ -442,6 +442,20 @@ describe("AdminProjectService", () => {
   });
 
   describe("findAll", () => {
+    it("개인과 회사 프로젝트를 함께 조회하면 목록에 출처와 수정 차단 여부를 제공한다", async () => {
+      const projects = [
+        { id: 1, slug: "personal-project", source: "personal" },
+        { id: 2, slug: "company-project", source: "company" },
+      ];
+      prisma.project.findMany.mockResolvedValue(projects);
+      await expect(service.findAll()).resolves.toEqual([
+        { ...projects[0], isBlocked: true },
+        { ...projects[1], isBlocked: false },
+      ]);
+      expect(prisma.project.findMany).toHaveBeenCalledWith({
+        orderBy: [{ order: "desc" }, { updatedAt: "desc" }],
+      });
+    });
     it("order, updatedAt 내림차순으로 조회한다", async () => {
       prisma.project.findMany.mockResolvedValue([]);
 
@@ -454,11 +468,40 @@ describe("AdminProjectService", () => {
   });
 
   describe("findOne / findOverSlug", () => {
+    it("개인과 회사 프로젝트의 상세와 검색에도 같은 수정 차단 정책을 제공한다", async () => {
+      const projects = [
+        { id: 1, slug: "personal-project", source: "personal" },
+        { id: 2, slug: "company-project", source: "company" },
+      ];
+      for (const project of projects) {
+        prisma.project.findUnique.mockResolvedValue(project);
+        await expect(service.findOne(project.slug)).resolves.toEqual({
+          ...project,
+          isBlocked: project.source === "personal",
+        });
+      }
+      prisma.project.findMany.mockResolvedValue(projects);
+      prisma.project.count.mockResolvedValue(2);
+      const result = await service.finedSearch({ page: 1, size: 10 });
+      expect(result).toMatchObject({
+        data: [
+          { ...projects[0], isBlocked: true },
+          { ...projects[1], isBlocked: false },
+        ],
+        filteredTotal: 2,
+        allTotal: 2,
+      });
+      prisma.project.findUnique.mockResolvedValue(null);
+      await expect(service.findOne("missing")).resolves.toBeNull();
+    });
     it("slug로 프로젝트를 조회한다", async () => {
-      const project = { id: 1, slug: "p1" };
+      const project = { id: 1, slug: "p1", source: "company" };
       prisma.project.findUnique.mockResolvedValue(project);
 
-      await expect(service.findOne("p1")).resolves.toEqual(project);
+      await expect(service.findOne("p1")).resolves.toEqual({
+        ...project,
+        isBlocked: false,
+      });
       expect(prisma.project.findUnique).toHaveBeenCalledWith({
         where: { slug: "p1" },
       });
@@ -475,19 +518,57 @@ describe("AdminProjectService", () => {
   });
 
   describe("update", () => {
-    it("조회한 출처를 그대로 재전송하면 분류를 유지하고 다른 내용을 수정한다", async () => {
+    it("회사 프로젝트 조회 응답을 재전송하면 isBlocked를 저장하지 않고 정상 수정한다", async () => {
       prisma.project.findUnique.mockResolvedValue({
         id: 1,
+        source: "company",
         stacks: "[]",
-        source: "personal",
       });
-      const data = { title: "수정", source: "personal" };
-      await expect(service.update("personal-project", data)).resolves.toEqual({
+      const data = { title: "회사 수정", source: "company", isBlocked: false };
+      await expect(service.update("company-project", data)).resolves.toEqual({
         status: 200,
         message: "프로젝트 업데이트 success",
       });
       expect(prisma.project.update).toHaveBeenCalledWith({
-        where: { slug: "personal-project" },
+        where: { slug: "company-project" },
+        data: { title: "회사 수정", source: "company" },
+      });
+    });
+    it("개인 프로젝트에 isBlocked false를 보내도 콘텐츠 수정과 태그 변경을 차단한다", async () => {
+      prisma.project.findUnique.mockResolvedValue({
+        id: 1,
+        slug: "personal-project",
+        source: "personal",
+        stacks: "[]",
+      });
+      prisma.tag.findUnique.mockResolvedValue({ id: 10, name: "React" });
+      prisma.projectTag.findMany.mockResolvedValue([]);
+      const data = {
+        title: "수정",
+        stacks: '["React"]',
+        source: "personal",
+        isBlocked: false,
+      };
+      await expect(service.update("personal-project", data)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(prisma.project.update).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.projectTag.deleteMany).not.toHaveBeenCalled();
+    });
+    it("조회한 출처를 그대로 재전송하면 분류를 유지하고 다른 내용을 수정한다", async () => {
+      prisma.project.findUnique.mockResolvedValue({
+        id: 1,
+        stacks: "[]",
+        source: "company",
+      });
+      const data = { title: "수정", source: "company" };
+      await expect(service.update("company-project", data)).resolves.toEqual({
+        status: 200,
+        message: "프로젝트 업데이트 success",
+      });
+      expect(prisma.project.update).toHaveBeenCalledWith({
+        where: { slug: "company-project" },
         data,
       });
     });

@@ -10,6 +10,11 @@ export class AdminProjectResponse {
     enumName: "ProjectSource",
   })
   source: ProjectSource;
+  @ApiProperty({
+    description: "어드민에서 프로젝트 콘텐츠 수정이 차단되는지 여부",
+    readOnly: true,
+  })
+  isBlocked: boolean;
   @ApiProperty({ description: "프로젝트 제목" })
   title: string;
   @ApiProperty({ description: "프로젝트 슬러그" })

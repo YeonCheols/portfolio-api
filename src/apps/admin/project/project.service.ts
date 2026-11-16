@@ -18,6 +18,10 @@ import {
   AdminProjectSearchResponse,
 } from "./dto/project-search.dto";
 
+const projectEditPolicy = (source: ProjectSource): { isBlocked: boolean } => ({
+  isBlocked: source === ProjectSource.personal,
+});
+
 @Injectable()
 export class AdminProjectService {
   constructor(private prisma: PrismaService) {}
@@ -205,14 +209,19 @@ export class AdminProjectService {
         },
       ],
     });
-    return projectList;
+    return projectList.map((project) => ({
+      ...project,
+      ...projectEditPolicy(project.source),
+    }));
   }
 
   async findOne(slug: string) {
     const project = await this.prisma.project.findUnique({
       where: { slug },
     });
-    return project;
+    return project
+      ? { ...project, ...projectEditPolicy(project.source) }
+      : null;
   }
 
   async findOverSlug(slug: string) {
@@ -232,6 +241,12 @@ export class AdminProjectService {
       throw new NotFoundException("Project not found");
     }
 
+    if (projectEditPolicy(existingProject.source).isBlocked) {
+      throw new ConflictException(
+        "자동 동기화 프로젝트는 어드민에서 수정할 수 없습니다.",
+      );
+    }
+
     if ("source" in data && data.source !== existingProject.source) {
       throw new BadRequestException("프로젝트 출처는 수정할 수 없습니다.");
     }
@@ -241,8 +256,11 @@ export class AdminProjectService {
         ? this.parseStacks(data.stacks)
         : null;
 
+    const updateData = { ...data };
+    if ("isBlocked" in updateData) delete updateData.isBlocked;
+
     await this.prisma.$transaction(async (tx) => {
-      await tx.project.update({ where: { slug }, data });
+      await tx.project.update({ where: { slug }, data: updateData });
       if (stackNames) {
         await this.syncProjectTags(tx, existingProject.id, stackNames);
       }
@@ -318,7 +336,10 @@ export class AdminProjectService {
       this.prisma.project.count({}),
     ]);
     return {
-      data,
+      data: data.map((project) => ({
+        ...project,
+        ...projectEditPolicy(project.source),
+      })),
       total: data.length,
       filteredTotal,
       allTotal,
