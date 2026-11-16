@@ -129,7 +129,6 @@ export class AdminProjectService {
       stacks: JSON.stringify(stackNames),
       linkDemo: data.linkDemo ?? null,
       linkGithub: data.linkGithub ?? null,
-      isShow: true,
     };
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -161,7 +160,7 @@ export class AdminProjectService {
             }
             const project = await tx.project.upsert({
               where: { slug: data.slug },
-              create: { slug: data.slug, image: "", ...content },
+              create: { slug: data.slug, image: "", ...content, isShow: true },
               update: { ...content, updatedAt: new Date() },
             });
             await this.syncProjectTags(tx, project.id, stackNames);

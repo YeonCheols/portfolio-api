@@ -51,6 +51,65 @@ describe("AdminProjectService", () => {
   });
 
   describe("upsert", () => {
+    it("숨긴 개인 프로젝트의 콘텐츠가 같으면 노출과 수정 시각을 유지하고 쓰기를 생략한다", async () => {
+      const data = {
+        slug: "personal-project",
+        title: "제목",
+        description: "설명",
+        image: "",
+        stacks: "[]",
+        content: "본문",
+      };
+      const existing = {
+        ...data,
+        id: 1,
+        source: "personal",
+        isShow: false,
+        linkDemo: null,
+        linkGithub: null,
+        updatedAt: new Date("2020-01-01"),
+        projectTags: [],
+      };
+      prisma.project.findUnique.mockResolvedValue(existing);
+      await expect(service.upsert(data)).resolves.toMatchObject({
+        operation: "unchanged",
+        project: { isShow: false, updatedAt: existing.updatedAt },
+      });
+      expect(prisma.project.upsert).not.toHaveBeenCalled();
+    });
+    it("숨긴 개인 프로젝트의 콘텐츠를 동기화해도 어드민 노출 설정을 유지한다", async () => {
+      const data = {
+        slug: "personal-project",
+        title: "새 제목",
+        description: "설명",
+        image: "",
+        stacks: "[]",
+        content: "새 본문",
+      };
+      const existing = {
+        ...data,
+        id: 1,
+        title: "이전 제목",
+        source: "personal",
+        isShow: false,
+        order: 13,
+        projectTags: [],
+      };
+      prisma.project.findUnique.mockResolvedValue(existing);
+      prisma.project.upsert.mockResolvedValue({
+        ...existing,
+        title: data.title,
+      });
+      prisma.projectTag.findMany.mockResolvedValue([]);
+      await expect(service.upsert(data)).resolves.toMatchObject({
+        operation: "updated",
+        project: { isShow: false, order: 13 },
+      });
+      expect(prisma.project.upsert.mock.calls[0][0].update).not.toHaveProperty(
+        "isShow",
+      );
+      expect(prisma.project.upsert.mock.calls[0][0].create.isShow).toBe(true);
+    });
     it("회사 프로젝트와 slug가 같으면 동기화를 거부하고 회사 데이터를 유지한다", async () => {
       const data = {
         slug: "company-project",
@@ -198,7 +257,7 @@ describe("AdminProjectService", () => {
         data.image,
       );
     });
-    it("기존 관리자 편집본을 공개 콘텐츠로 교체하면서 정렬값은 변경하지 않는다", async () => {
+    it("기존 관리자 편집본을 동기화 콘텐츠로 교체하면서 노출과 정렬은 유지한다", async () => {
       const data = {
         slug: "p1",
         title: "자동 갱신",
@@ -220,20 +279,22 @@ describe("AdminProjectService", () => {
       prisma.project.upsert.mockResolvedValue({
         id: 1,
         ...data,
-        isShow: true,
+        isShow: false,
         order: 13,
       });
       prisma.projectTag.findMany.mockResolvedValue([]);
       await expect(service.upsert(data)).resolves.toMatchObject({
         operation: "updated",
-        project: { isShow: true, order: 13 },
+        project: { isShow: false, order: 13 },
       });
       expect(prisma.project.upsert.mock.calls[0][0].update).toMatchObject({
         title: data.title,
         content: data.content,
-        isShow: true,
         updatedAt: expect.any(Date),
       });
+      expect(prisma.project.upsert.mock.calls[0][0].update).not.toHaveProperty(
+        "isShow",
+      );
       expect(prisma.project.upsert.mock.calls[0][0].update).not.toHaveProperty(
         "order",
       );
@@ -330,7 +391,6 @@ describe("AdminProjectService", () => {
         update: expect.objectContaining({
           title: data.title,
           content: data.content,
-          isShow: true,
           updatedAt: expect.any(Date),
         }),
       });
@@ -666,6 +726,27 @@ describe("AdminProjectService", () => {
   });
 
   describe("updateShow", () => {
+    it.each([true, false])(
+      "개인 프로젝트의 콘텐츠가 차단되어도 isShow %s 전환은 허용한다",
+      async (isShow) => {
+        prisma.project.findUnique.mockResolvedValue({
+          id: 1,
+          slug: "personal-project",
+          source: "personal",
+          isShow: !isShow,
+        });
+        await expect(
+          service.findOne("personal-project"),
+        ).resolves.toMatchObject({ source: "personal", isBlocked: true });
+        await expect(
+          service.updateShow({ slug: "personal-project", isShow }),
+        ).resolves.toMatchObject({ status: 200 });
+        expect(prisma.project.update).toHaveBeenCalledWith({
+          where: { slug: "personal-project" },
+          data: { isShow },
+        });
+      },
+    );
     it("slug나 isShow 타입이 잘못되면 400 에러를 던진다", async () => {
       await expect(
         service.updateShow({ slug: "p1", isShow: "true" } as never),
