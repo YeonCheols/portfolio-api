@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { Prisma, Tag } from "@prisma/client";
+import { Prisma, ProjectSource, Tag } from "@prisma/client";
 import {
   AdminProjectCreateRequest,
   AdminProjectUpdateRequest,
@@ -17,6 +17,10 @@ import {
   AdminProjectSearchRequest,
   AdminProjectSearchResponse,
 } from "./dto/project-search.dto";
+
+const projectEditPolicy = (source: ProjectSource): { isBlocked: boolean } => ({
+  isBlocked: source === ProjectSource.personal,
+});
 
 @Injectable()
 export class AdminProjectService {
@@ -117,6 +121,7 @@ export class AdminProjectService {
   ) {
     const stackNames = [...new Set(this.parseStacks(data.stacks))];
     const content = {
+      source: ProjectSource.personal,
       title: data.title,
       description: data.description,
       ...(data.image ? { image: data.image } : {}),
@@ -124,7 +129,6 @@ export class AdminProjectService {
       stacks: JSON.stringify(stackNames),
       linkDemo: data.linkDemo ?? null,
       linkGithub: data.linkGithub ?? null,
-      isShow: true,
     };
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -134,6 +138,11 @@ export class AdminProjectService {
               where: { slug: data.slug },
               include: { projectTags: { include: { tag: true } } },
             });
+            if (existing?.source === ProjectSource.company) {
+              throw new ConflictException(
+                "회사 프로젝트는 자동 동기화할 수 없습니다.",
+              );
+            }
             if (
               existing &&
               (Object.keys(content) as (keyof typeof content)[]).every(
@@ -151,7 +160,7 @@ export class AdminProjectService {
             }
             const project = await tx.project.upsert({
               where: { slug: data.slug },
-              create: { slug: data.slug, image: "", ...content },
+              create: { slug: data.slug, image: "", ...content, isShow: true },
               update: { ...content, updatedAt: new Date() },
             });
             await this.syncProjectTags(tx, project.id, stackNames);
@@ -160,6 +169,7 @@ export class AdminProjectService {
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
       } catch (error) {
+        if (error instanceof ConflictException) throw error;
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
           ["P2034", "P2002"].includes(error.code)
@@ -179,7 +189,9 @@ export class AdminProjectService {
     const stackNames = this.parseStacks(data.stacks);
 
     return this.prisma.$transaction(async (tx) => {
-      const project = await tx.project.create({ data });
+      const project = await tx.project.create({
+        data: { ...data, source: ProjectSource.company },
+      });
       await this.linkProjectTags(tx, project.id, stackNames);
       return project;
     });
@@ -196,14 +208,19 @@ export class AdminProjectService {
         },
       ],
     });
-    return projectList;
+    return projectList.map((project) => ({
+      ...project,
+      ...projectEditPolicy(project.source),
+    }));
   }
 
   async findOne(slug: string) {
     const project = await this.prisma.project.findUnique({
       where: { slug },
     });
-    return project;
+    return project
+      ? { ...project, ...projectEditPolicy(project.source) }
+      : null;
   }
 
   async findOverSlug(slug: string) {
@@ -223,13 +240,26 @@ export class AdminProjectService {
       throw new NotFoundException("Project not found");
     }
 
+    if (projectEditPolicy(existingProject.source).isBlocked) {
+      throw new ConflictException(
+        "자동 동기화 프로젝트는 어드민에서 수정할 수 없습니다.",
+      );
+    }
+
+    if ("source" in data && data.source !== existingProject.source) {
+      throw new BadRequestException("프로젝트 출처는 수정할 수 없습니다.");
+    }
+
     const stackNames =
       data.stacks && data.stacks !== existingProject.stacks
         ? this.parseStacks(data.stacks)
         : null;
 
+    const updateData = { ...data };
+    if ("isBlocked" in updateData) delete updateData.isBlocked;
+
     await this.prisma.$transaction(async (tx) => {
-      await tx.project.update({ where: { slug }, data });
+      await tx.project.update({ where: { slug }, data: updateData });
       if (stackNames) {
         await this.syncProjectTags(tx, existingProject.id, stackNames);
       }
@@ -305,7 +335,10 @@ export class AdminProjectService {
       this.prisma.project.count({}),
     ]);
     return {
-      data,
+      data: data.map((project) => ({
+        ...project,
+        ...projectEditPolicy(project.source),
+      })),
       total: data.length,
       filteredTotal,
       allTotal,

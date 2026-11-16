@@ -1,5 +1,6 @@
 model Project {
   id          Int      @id @default(autoincrement())
+  source      ProjectSource @default(personal)
   title       String
   slug        String   @unique
   description String
@@ -14,4 +15,9 @@ model Project {
   
   // ProjectTag와의 관계
   projectTags ProjectTag[]
+}
+
+enum ProjectSource {
+  personal
+  company
 }
