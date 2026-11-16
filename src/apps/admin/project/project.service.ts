@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { Prisma, Tag } from "@prisma/client";
+import { Prisma, ProjectSource, Tag } from "@prisma/client";
 import {
   AdminProjectCreateRequest,
   AdminProjectUpdateRequest,
@@ -117,6 +117,7 @@ export class AdminProjectService {
   ) {
     const stackNames = [...new Set(this.parseStacks(data.stacks))];
     const content = {
+      source: ProjectSource.personal,
       title: data.title,
       description: data.description,
       ...(data.image ? { image: data.image } : {}),
@@ -134,6 +135,11 @@ export class AdminProjectService {
               where: { slug: data.slug },
               include: { projectTags: { include: { tag: true } } },
             });
+            if (existing?.source === ProjectSource.company) {
+              throw new ConflictException(
+                "회사 프로젝트는 자동 동기화할 수 없습니다.",
+              );
+            }
             if (
               existing &&
               (Object.keys(content) as (keyof typeof content)[]).every(
@@ -160,6 +166,7 @@ export class AdminProjectService {
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
       } catch (error) {
+        if (error instanceof ConflictException) throw error;
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
           ["P2034", "P2002"].includes(error.code)
@@ -179,7 +186,9 @@ export class AdminProjectService {
     const stackNames = this.parseStacks(data.stacks);
 
     return this.prisma.$transaction(async (tx) => {
-      const project = await tx.project.create({ data });
+      const project = await tx.project.create({
+        data: { ...data, source: ProjectSource.company },
+      });
       await this.linkProjectTags(tx, project.id, stackNames);
       return project;
     });
@@ -221,6 +230,10 @@ export class AdminProjectService {
 
     if (!existingProject) {
       throw new NotFoundException("Project not found");
+    }
+
+    if ("source" in data && data.source !== existingProject.source) {
+      throw new BadRequestException("프로젝트 출처는 수정할 수 없습니다.");
     }
 
     const stackNames =

@@ -39,25 +39,31 @@ describe("ProjectService", () => {
   afterEach(() => jest.useRealTimers());
 
   describe("findAll", () => {
-    it("최근 생성된 프로젝트의 목록·검색·상세에 같은 최근 표시를 추가한다", async () => {
-      const project = {
-        id: 1,
-        slug: "new-project",
-        updatedAt: new Date(),
-        order: 16,
-      };
-      prisma.project.findMany.mockResolvedValue([project]);
-      prisma.project.findUnique.mockResolvedValue(project);
-      prisma.project.count.mockResolvedValue(1);
-      expect(await service.findAll()).toEqual([{ ...project, isRecent: true }]);
-      expect((await service.finedSearch({} as never)).data).toEqual([
-        { ...project, isRecent: true },
-      ]);
-      expect(await service.findOne(project.slug)).toEqual({
-        ...project,
-        isRecent: true,
-      });
-    });
+    it.each(["personal", "company"])(
+      "%s 프로젝트의 목록·검색·상세에서 출처와 최근 표시를 함께 제공한다",
+      async (source) => {
+        const project = {
+          id: 1,
+          slug: "new-project",
+          source,
+          updatedAt: new Date(),
+          order: 16,
+        };
+        prisma.project.findMany.mockResolvedValue([project]);
+        prisma.project.findUnique.mockResolvedValue(project);
+        prisma.project.count.mockResolvedValue(1);
+        expect(await service.findAll()).toEqual([
+          { ...project, isRecent: true },
+        ]);
+        expect((await service.finedSearch({} as never)).data).toEqual([
+          { ...project, isRecent: true },
+        ]);
+        expect(await service.findOne(project.slug)).toEqual({
+          ...project,
+          isRecent: true,
+        });
+      },
+    );
     it("노출 중인 프로젝트만 정렬해서 조회한다", async () => {
       prisma.project.findMany.mockResolvedValue([]);
 

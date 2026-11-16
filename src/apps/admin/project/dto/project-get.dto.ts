@@ -1,8 +1,15 @@
+import { ProjectSource } from "@prisma/client";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class AdminProjectResponse {
   @ApiProperty({ description: "프로젝트 ID" })
   id: number;
+  @ApiProperty({
+    description: "프로젝트 출처: 개인 프로젝트 또는 회사 프로젝트",
+    enum: ProjectSource,
+    enumName: "ProjectSource",
+  })
+  source: ProjectSource;
   @ApiProperty({ description: "프로젝트 제목" })
   title: string;
   @ApiProperty({ description: "프로젝트 슬러그" })

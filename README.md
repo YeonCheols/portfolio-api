@@ -82,6 +82,45 @@ pnpm prisma:migrate:resolve --applied 20261030120000_shared_user_identity
 
 `20261030120000_shared_user_identity` migration은 공용 `User`와 외부 로그인 계정을 연결하는 `UserIdentity`를 추가합니다. 현재 GitHub 제공자만 정의하며, 제공자와 외부 사용자 ID 조합을 유일하게 관리하고 각 식별자를 공용 사용자와 외래 키로 연결합니다.
 
+### 프로젝트 출처 분류 (#120)
+
+`20261116003404_add_project_source`는 `Project.source` 컬럼과 `ProjectSource` enum을 추가합니다.
+
+- 허용 값은 개인 프로젝트 `personal`과 회사 프로젝트 `company`이며, 컬럼은 NOT NULL이고 기본값은 `personal`입니다.
+- 기존 개인 프로젝트는 기본값을 적용하고, `jobkorea-bizcenter`, `albamon`, `albamon-deeplink-library`만 `company`로 분류합니다.
+- 기존 콘텐츠, 노출 여부, 정렬, 수정 시각과 태그는 변경하지 않습니다.
+- 새 API 코드의 자동 동기화는 `personal`, 어드민 신규 등록은 `company`로 저장합니다. 어드민 수정에서 출처 변경을 거부하고 자동 동기화에서 회사 프로젝트와 slug가 겹치면 409를 반환합니다.
+
+운영 테이블에 DDL과 기존 데이터 분류를 먼저 반영한 뒤 Prisma 적용 이력을 등록합니다. 수동 적용할 SQL은 migration 파일과 동일하며 다음과 같습니다.
+
+```sql
+BEGIN;
+-- CreateEnum
+CREATE TYPE "ProjectSource" AS ENUM ('personal', 'company');
+
+-- AlterTable
+ALTER TABLE "Project" ADD COLUMN     "source" "ProjectSource" NOT NULL DEFAULT 'personal';
+
+-- 기존 회사 프로젝트만 재분류하며 콘텐츠와 수정 시각은 유지합니다.
+UPDATE "Project"
+SET "source" = 'company'
+WHERE "slug" IN ('jobkorea-bizcenter', 'albamon', 'albamon-deeplink-library');
+COMMIT;
+```
+
+DDL 적용 후 enum 값, NOT NULL, `personal` 기본값, 기존 프로젝트의 출처와 나머지 필드 보존을 확인합니다. 실제 스키마와 데이터가 migration 결과와 일치하고 적용 이력이 없을 때만 다음 명령으로 이력을 정합화합니다. 운영 설정을 읽는 CLI는 `portfolio-config` 0.3.0 이상을 사용합니다.
+
+```bash
+portfolio-config run --app portfolio-api --env production --ref master -- \
+  pnpm prisma:migrate:resolve --applied 20261116003404_add_project_source
+portfolio-config run --app portfolio-api --env production --ref master -- \
+  pnpm prisma:migrate:status
+```
+
+2026-11-16 운영 DB에 SQL을 트랜잭션으로 먼저 적용한 뒤 위 `migrate resolve`로 적용 이력을 등록했습니다. 비공개 항목을 포함한 전체 8개 프로젝트는 `personal` 5개와 `company` 3개로 분류됐으며, 기존 모든 비출처 필드가 보존된 것을 확인했습니다. 후속 `prisma migrate status` 결과는 `Database schema is up to date!`입니다.
+
+`migrate resolve`는 DDL을 실행하지 않고 적용 이력만 기록합니다. 이미 수동 적용한 SQL을 `migrate deploy`로 다시 실행하지 않습니다. 빈 DB 등 아직 SQL이 적용되지 않은 환경에서는 `pnpm prisma:migrate:deploy`로 SQL과 적용 이력을 함께 반영합니다. 등록 경로별 출처 고정과 응답 DTO는 API 코드 배포 후 적용됩니다.
+
 ### 공용 OAuth 인증과 토큰 수명주기
 
 수동으로 테이블을 생성한 경우, 실제 스키마가 migration SQL과 일치하고 `_prisma_migrations`에 기록이 없을 때만 아래 명령으로 적용 이력을 등록합니다. DB 연결 환경 변수가 설정되어 있어야 합니다.
