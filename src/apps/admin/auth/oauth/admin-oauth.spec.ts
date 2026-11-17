@@ -60,6 +60,8 @@ describe("resolveAdminAppUrl", () => {
     ["https://admin.example.com/login?x=1", "https://admin.example.com"],
     ["http://localhost:5001", "http://localhost:5001"],
     ["http://localhost:5001/some/path", "http://localhost:5001"],
+    ["https://local.ycseng.com", "https://local.ycseng.com"],
+    ["https://local.ycseng.com:5002", "https://local.ycseng.com:5002"],
   ])("허용 범위의 %s는 origin만 쓴다", (requested, expected) => {
     expect(resolveAdminAppUrl(requested)).toBe(expected);
   });
@@ -70,6 +72,8 @@ describe("resolveAdminAppUrl", () => {
     "not a url",
     "https://evil.example.com",
     "https://admin.example.com.evil.com",
+    "https://sub.local.ycseng.com:5002",
+    "http://local.ycseng.com:5002",
     "https://localhost:5001",
     "http://localhost.evil.com",
     "http://127.0.0.1:5001",
