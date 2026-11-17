@@ -26,7 +26,7 @@ const configuredAdminAppUrl = (): string => {
 
 /**
  * 로그인을 시작한 관리자 앱의 주소입니다. 관리자 앱이 알려 준 값이 ADMIN_APP_URL과 같은 origin이거나
- * http://localhost일 때만 쓰고, 그 외에는 ADMIN_APP_URL로 돌립니다. 이동 주소에는 토큰이 실리지
+ * http://localhost 또는 https://local.ycseng.com일 때만 쓰고, 그 외에는 ADMIN_APP_URL로 돌립니다. 이동 주소에는 토큰이 실리지
  * 않고(오류 코드만) 허용 범위 밖의 주소는 받지 않아 열린 리다이렉트가 생기지 않습니다.
  */
 export const resolveAdminAppUrl = (requested?: string | null): string => {
@@ -35,9 +35,14 @@ export const resolveAdminAppUrl = (requested?: string | null): string => {
   try {
     const candidate = new URL(requested);
     const isConfigured = candidate.origin === new URL(configured).origin;
-    const isLocal =
+    const isLocalhost =
       candidate.protocol === "http:" && candidate.hostname === "localhost";
-    return isConfigured || isLocal ? candidate.origin : configured;
+    const isLocalDomain =
+      candidate.protocol === "https:" &&
+      candidate.hostname === "local.ycseng.com";
+    return isConfigured || isLocalhost || isLocalDomain
+      ? candidate.origin
+      : configured;
   } catch {
     return configured;
   }
