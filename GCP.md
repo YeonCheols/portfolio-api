@@ -2,7 +2,7 @@
 
 상태: 검토용 초안. 로컬 컨테이너(`PORT`, Dockerfile, Compose)까지 반영했다. GCP 프로젝트와 배포 워크플로는 아직 없다.
 
-Git 저장소(`YeonCheols/portfolio-api`)와 GitHub Actions는 유지한다. 바꾸는 것은 요청을 받는 서버다. 지금은 `vercel.json`이 `src/main.ts`를 `@vercel/node` 함수로 올리고, `https://api.ycseng.com`이 그 함수를 가리킨다.
+Git 저장소(`side-projects-labs/portfolio-api`)와 GitHub Actions는 유지한다. 바꾸는 것은 요청을 받는 서버다. 지금은 `vercel.json`이 `src/main.ts`를 `@vercel/node` 함수로 올리고, `https://api.ycseng.com`이 그 함수를 가리킨다.
 
 ## 권장 형태
 
